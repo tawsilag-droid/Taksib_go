@@ -1,1 +1,20 @@
-index.php
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>توصيلة سوهاج</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<style>body{font-family:Tahoma;background:#f1f5f9} .hidden{display:none!important} #map{height:220px;border-radius:16px} #adminMap{height:220px;border-radius:12px}</style>
+</head>
+<body>
+<div id="tawsila-app">جارى تحميل توصيلة سوهاج...</div>
+<script src="app.js"></script>
+</body>
+</html>
