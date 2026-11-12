@@ -269,4 +269,9 @@ window.recalcTrip(); window.renderTripChat();
 setTimeout(function(){
   try{ if(window.L && el('map')){ var map=L.map('map').setView([26.557,31.694],13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map); L.marker([26.557,31.694]).addTo(map).bindPopup('سوهاج'); } }catch(e){}
   try{ if(window.L && el('adminMap')){ var amap=L.map('adminMap').setView([26.557,31.694],13); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(amap); } }catch(e){}
+  function fillAdmin(){
+  document.querySelector('input[type="email"]').value = 'sasahalawa123@gmail.com;
+  // حط هنا إيميل الأدمن الحقيقي بتاعك
+  alert('تم ملء إيميل الأدمن - اكتب كلمة المرور ودوس دخول آمن');
+  }
 }, 500);
