@@ -2,19 +2,47 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>توصيلة سوهاج</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>توصيلة سوهاج 🚕</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#059669">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<style>body{font-family:Tahoma;background:#f1f5f9} .hidden{display:none!important} #map{height:220px;border-radius:16px} #adminMap{height:220px;border-radius:12px}</style>
+<style>
+  *{box-sizing:border-box;font-family:system-ui,Arial}
+  body{margin:0;background:#f1f5f9}
+  #loading{text-align:center;padding:60px 20px;font-size:18px;font-weight:bold;color:#059669}
+</style>
 </head>
 <body>
-<div id="tawsila-app">جارى تحميل توصيلة سوهاج...</div>
+
+<div id="tawsila-app">
+  <div id="loading">جارى تحميل توصيلة سوهاج...<br><span style="font-size:13px;color:#666">لو فضلت كده 10 ثواني - امسح الكاش وافتح تاني</span></div>
+</div>
+
+<!-- Firebase - لازم دول قبل app.js -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="app.js"></script>
+
+<script>
+// PWA - سجّل السيرفس وركر بعد ما التطبيق يفتح
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+// لو التطبيق فضل واقف 8 ثواني - وري رسالة الخطأ
+setTimeout(()=>{
+  const el = document.getElementById('loading');
+  if(el){
+    el.innerHTML = 'التطبيق مش راضي يفتح 😓<br><span style="font-size:13px;color:#dc2626">السبب غالباً: الـ apiKey في app.js لسه PUT_YOUR_API_KEY<br>او امسح الكاش وافتح بـ ?v=99</span><br><br><button onclick="location.reload(true)" style="padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:10px">حاول تاني</button>';
+  }
+}, 8000);
+</script>
 </body>
 </html>
