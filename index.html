@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title id="htmlAppTitle">توصيلة - Tawsila Super App</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"توصيلة","short_name":"توصيلة","start_url":"https://tawsilag-droid.github.io/Taksib_go/","display":"standalone","background_color":"#059669","theme_color":"#059669","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3202/3202926.png","sizes":"512x512","type":"image/png"}]}'>
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3202/3202926.png">
+  <meta name="theme-color" content="#059669">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- خريطة Leaflet عالية الدقة -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- الخطوط والأيقونات -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body { font-family: 'Cairo', sans-serif; }
+    .font-code { font-family: 'Fira Code', monospace; }
+    #map { height: 410px; width: 100%; border-radius: 1.25rem; z-index: 10; }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 16px rgba(220, 38, 38, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+    }
+    .incoming-alert { animation: pulse-ring 1.5s infinite; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+  <!-- حاوية الباتشات المحقونة ديناميكياً -->
+  <div id="patchHtmlContainer"></div>
+
+  <!-- شريط تنبيهات الذروة والمحافظات المغلقة -->
+  <div id="topAlertBar" class="hidden bg-amber-500 text-slate-950 font-black px-4 py-1.5 text-xs text-center flex items-center justify-center gap-2 shadow">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <span id="topAlertMessage"></span>
+  </div>
+
+  <!-- شريط التنقل العلوي -->
+  <header class="bg-emerald-600 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="handleLogoClick()">
+        <div class="w-10 h-10 bg-white text-emerald-600 rounded-xl flex items-center justify-center font-black text-2xl shadow">ت</div>
+        <div>
+          <h1 id="headerAppName" class="text-xl font-black tracking-wide">توصيلة</h1>
+          <p class="text-[11px] text-emerald-100">شبكة النقل الذكي في جمهورية مصر العربية</p>
+        </div>
+      </div>
+
+      <!-- الإجراءات والمستخدم -->
+      <div class="flex items-center gap-2">
+        <!-- رصيد محفظة العميل -->
+        <div id="navCustomerWalletBox" class="hidden items-center gap-1.5 bg-emerald-800/80 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-400/30">
+          <i class="fa-solid fa-wallet text-amber-300"></i>
+          <span>رصيدك: <b id="navCustomerWallet" class="text-amber-300 font-black">150.00</b> ج.م</span>
+          <button onclick="openWalletModal()" class="bg-emerald-500 hover:bg-emerald-400 text-white px-2 py-0.5 rounded text-[10px] ml-1">شحن +</button>
+        </div>
+
+        <!-- أزرار التنقل حسب الصلاحيات -->
+        <nav class="flex items-center gap-1.5 text-xs font-bold">
+          <button onclick="navigate('admin')" id="nav-btn-admin" class="hidden px-3 py-1.5 rounded-xl bg-amber-400 text-slate-900 shadow font-black transition">
+            <i class="fa-solid fa-shield-halved ml-1"></i> لوحة الإدارة
+          </button>
+
+          <button onclick="navigate('customer')" id="nav-btn-customer" class="hidden px-3 py-1.5 rounded-xl bg-white text-emerald-700 shadow font-black transition">
+            <i class="fa-solid fa-street-view ml-1"></i> حجز مشوار
+          </button>
+
+          <button onclick="navigate('driver')" id="nav-btn-driver" class="hidden px-3 py-1.5 rounded-xl bg-white text-emerald-700 shadow font-black transition">
+            <i class="fa-solid fa-taxi ml-1"></i> شاشة الكابتن
+          </button>
+
+          <div id="navUserBadge" class="hidden items-center gap-2 bg-emerald-800 px-3 py-1.5 rounded-xl">
+            <span id="navUserName" class="text-white text-xs font-bold truncate max-w-[100px]"></span>
+            <button onclick="logoutUser()" class="text-rose-300 hover:text-white text-xs font-bold mr-1" title="خروج"><i class="fa-solid fa-power-off"></i></button>
+          </div>
+
+          <button onclick="navigate('auth')" id="nav-btn-login" class="px-3 py-1.5 rounded-xl bg-white text-emerald-700 shadow font-black transition">
+            <i class="fa-solid fa-user-plus ml-1"></i> دخول / تسجيل
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- المحتوى الرئيسي -->
+  <main class="max-w-7xl mx-auto px-4 py-5 w-full flex-grow">
+
+    <!-- 1. واجهة العميل (حجز رحلة مع نظام الخصم والمزايدة والمحافظات) -->
+    <section id="view-customer" class="page-view hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white p-5 rounded-2xl shadow-xl border border-slate-200 flex flex-col justify-between space-y-4">
+        <div>
+          <!-- محدد المحافظات الجغرافي -->
+          <div class="bg-slate-50 border p-2.5 rounded-xl mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+              <i class="fa-solid fa-city text-emerald-600"></i>
+              <span>المحافظة:</span>
+            </div>
+            <select id="custGovernorateSelect" onchange="handleGovernorateChange(this.value)" class="text-xs font-black bg-white border border-slate-300 rounded-lg p-1 outline-none text-emerald-800"></select>
+          </div>
+
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-location-dot text-emerald-600"></i> تفاصيل المشوار
+            </h2>
+            <span class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full" id="custStatusBadge">جاهز للطلب</span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <!-- مكان الركوب -->
+            <div class="relative">
+              <div class="flex justify-between items-center mb-1">
+                <label class="font-bold text-slate-600">مكان الركوب</label>
+                <button onclick="getCurrentLocation()" class="text-[10px] text-emerald-700 hover:underline font-bold flex items-center gap-1">
+                  <i class="fa-solid fa-crosshairs"></i> موقعي بالـ GPS
+                </button>
+              </div>
+              <div class="flex items-center border rounded-xl p-2.5 bg-slate-50 focus-within:border-emerald-500 focus-within:bg-white transition">
+                <i class="fa-solid fa-circle-dot text-emerald-600 ml-2"></i>
+                <input type="text" id="pickupInput" placeholder="اكتب مكان الركوب..." 
+                       oninput="handleSearchSuggestions(this.value, 'pickup')" class="bg-transparent w-full outline-none font-bold text-slate-800">
+              </div>
+              <div id="pickupSuggestions" class="hidden absolute top-full right-0 left-0 bg-white border rounded-xl shadow-2xl mt-1 max-h-48 overflow-y-auto z-40 divide-y"></div>
+            </div>
+
+            <!-- جهة الوصول -->
+            <div class="relative">
+              <label class="font-bold text-slate-600 mb-1 block">جهة الوصول</label>
+              <div class="flex items-center border rounded-xl p-2.5 bg-slate-50 focus-within:border-emerald-500 focus-within:bg-white transition">
+                <i class="fa-solid fa-location-pin text-rose-600 ml-2"></i>
+                <input type="text" id="dropoffInput" placeholder="اكتب الوجهة المقصودة..." 
+                       oninput="handleSearchSuggestions(this.value, 'dropoff')" class="bg-transparent w-full outline-none font-bold text-slate-800">
+              </div>
+              <div id="dropoffSuggestions" class="hidden absolute top-full right-0 left-0 bg-white border rounded-xl shadow-2xl mt-1 max-h-48 overflow-y-auto z-40 divide-y"></div>
+            </div>
+
+            <!-- فئة المركبة -->
+            <div>
+              <label class="font-bold text-slate-600 mb-1.5 block">فئة وسيلة النقل</label>
+              <div id="vehicleTypesGrid" class="grid grid-cols-3 gap-2"></div>
+            </div>
+
+            <!-- كوبون الخصم الترويجي -->
+            <div class="bg-emerald-50/70 border border-emerald-200 p-2.5 rounded-xl flex items-center gap-2">
+              <input type="text" id="promoCodeInput" placeholder="كود الخصم (مثال: TAWSILA2026)" class="uppercase flex-grow border bg-white rounded-lg p-1.5 text-xs font-bold font-mono outline-none">
+              <button onclick="applyPromoCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs">تطبيق</button>
+            </div>
+            <p id="promoCodeStatus" class="hidden text-[10px] font-bold text-emerald-700"></p>
+
+            <!-- المزايدة على السعر (InDrive Style Bidding) -->
+            <div id="biddingBoxSection" class="hidden bg-amber-50 border border-amber-300 p-2.5 rounded-xl space-y-1.5">
+              <div class="flex justify-between items-center text-xs font-bold text-amber-950">
+                <span>⚡ اقترح سعرك المناسب (تفاوض):</span>
+                <span id="customBidDisplay" class="font-black text-amber-700">0 ج.م</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="adjustBidFare(-5)" class="bg-white border border-amber-400 px-3 py-1 rounded-lg font-black text-sm">-5</button>
+                <input type="number" id="customBidInput" class="w-full text-center border font-black text-sm p-1 rounded-lg outline-none" onchange="updateBidFare(this.value)">
+                <button onclick="adjustBidFare(+5)" class="bg-white border border-amber-400 px-3 py-1 rounded-lg font-black text-sm">+5</button>
+              </div>
+            </div>
+
+            <!-- ملخص السعر المقدر -->
+            <div class="bg-slate-900 text-white p-3.5 rounded-xl space-y-1.5">
+              <div class="flex justify-between text-slate-300 text-xs">
+                <span>المسافة: <b id="calcDistanceText" class="text-white">4.5 كم</b></span>
+                <span id="surgeBadge" class="hidden bg-rose-600 text-white px-2 py-0.5 rounded text-[10px] font-bold animate-pulse">ذروة مضاعفة</span>
+              </div>
+              <div class="border-t border-slate-800 pt-1.5 flex justify-between items-center">
+                <span class="font-bold text-xs">الأجرة المقدرة:</span>
+                <span id="calcTotalFareText" class="text-xl font-black text-emerald-400">25.75 ج.م</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <button onclick="handleCustomerRequestRide()" id="btnRequestRide" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+            <i class="fa-solid fa-bolt"></i> طلب المشوار فوراً
+          </button>
+
+          <!-- بطاقة بيانات الكابتن + زر الأمان SOS -->
+          <div id="customerDriverCard" class="hidden mt-3 bg-emerald-50 border border-emerald-300 p-3.5 rounded-xl space-y-2.5">
+            <div class="flex items-center justify-between border-b border-emerald-200 pb-2">
+              <div>
+                <h4 class="font-bold text-slate-800 text-xs" id="driverCardName">الكابتن: محمد السيد</h4>
+                <p class="text-[10px] text-emerald-700 font-semibold">تقييم: 4.9 ⭐ (كابتن معتمد)</p>
+              </div>
+              <button onclick="triggerEmergencySOS()" class="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow animate-pulse">
+                <i class="fa-solid fa-shield-cat ml-1"></i> زر طوارئ SOS
+              </button>
+            </div>
+
+            <div class="text-xs space-y-1 text-slate-700">
+              <p>🚘 <b>المركبة:</b> <span id="driverCardCar" class="text-slate-900 font-bold"></span></p>
+              <p>🔢 <b>اللوحة:</b> <span id="driverCardPlate" class="bg-white px-2 py-0.5 rounded border font-bold"></span></p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="startVoiceCall()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow">
+                <i class="fa-solid fa-phone-volume"></i> اتصال صوتي
+              </button>
+              <button onclick="openChatModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow">
+                <i class="fa-solid fa-comments"></i> شات ومراسلة
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- خريطة مصر التفاعلية المباشرة -->
+      <div class="lg:col-span-2 bg-white p-4 rounded-2xl shadow-xl border border-slate-200 flex flex-col justify-between">
+        <div class="flex justify-between items-center mb-2 px-1 text-xs text-slate-500">
+          <span><i class="fa-solid fa-map-location-dot text-emerald-600 ml-1"></i> خريطة شوارع ومحافظات مصر الحية عالية الدقة</span>
+          <span id="activeGovBadge" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black">سوهاج</span>
+        </div>
+        <div id="map"></div>
+      </div>
+    </section>
+
+    <!-- 2. واجهة الكابتن -->
+    <section id="view-driver" class="page-view hidden max-w-xl mx-auto space-y-4">
+      
+      <!-- حالة الكابتن قيد المراجعة -->
+      <div id="captainPendingScreen" class="hidden bg-white p-6 rounded-3xl shadow-xl border border-amber-200 text-center space-y-4">
+        <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-3xl flex items-center justify-center mx-auto text-3xl shadow-sm">
+          <i class="fa-solid fa-hourglass-half animate-spin"></i>
+        </div>
+        <div>
+          <h2 class="font-black text-lg text-slate-800">طلبك قيد المراجعة والتدقيق</h2>
+          <p class="text-xs text-slate-500 mt-1">يقوم مسؤولو الإدارة حالياً بمراجعة رخصتك وصورة بطاقتك وتفعيل حسابك لاستقبال الرحلات.</p>
+        </div>
+        <button onclick="logoutUser()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold text-xs text-slate-700">تسجيل الخروج</button>
+      </div>
+
+      <!-- شاشة الكابتن المعتمد -->
+      <div id="captainActiveScreen" class="hidden bg-white p-5 rounded-2xl shadow-xl border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center border-b pb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center text-xl font-bold shadow">
+              <i class="fa-solid fa-taxi"></i>
+            </div>
+            <div>
+              <h2 id="driverDashboardName" class="font-bold text-base text-slate-800">الكابتن: </h2>
+              <p class="text-xs text-slate-500">الرصيد: <b class="text-emerald-600 font-bold" id="driverWalletEGP">0.00 ج.م</b></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="testDriverAlertSound()" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-xs font-bold border border-amber-300">
+              <i class="fa-solid fa-volume-high"></i> فحص الصوت
+            </button>
+            <span class="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-300">متصل (Online)</span>
+          </div>
+        </div>
+
+        <!-- صندوق العرض الوارد مع السارينة والنطق -->
+        <div id="driverOfferBox" class="hidden p-5 rounded-2xl border-2 border-rose-500 bg-rose-50 incoming-alert space-y-4">
+          <div class="flex justify-between items-center">
+            <span class="bg-rose-600 text-white text-xs px-3 py-1 rounded-full font-black animate-pulse flex items-center gap-1">
+              <i class="fa-solid fa-bell"></i> مشوار جديد وارد الآن!
+            </span>
+            <div class="flex items-center gap-1 text-rose-700 font-black text-sm bg-white px-3 py-1 rounded-xl shadow-sm border border-rose-200">
+              <i class="fa-solid fa-stopwatch text-base animate-spin"></i>
+              <span id="countdownTimer">25</span> ثانية
+            </div>
+          </div>
+
+          <div class="bg-white p-3 rounded-xl border border-rose-200 space-y-1.5 text-xs">
+            <p>📍 <b>الركوب:</b> <span id="offerFromText" class="font-bold"></span></p>
+            <p>🏁 <b>الوجهة:</b> <span id="offerToText" class="font-bold"></span></p>
+            <p>🛵 <b>المركبة:</b> <span id="offerVehicleText" class="font-bold text-emerald-700"></span></p>
+            <div class="border-t pt-1.5 flex justify-between items-center">
+              <span class="font-bold text-slate-700">الأجرة المطلوبة:</span>
+              <span id="offerFareText" class="text-lg font-black text-emerald-600"></span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <button onclick="captainAcceptTrip()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs shadow flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-check-circle"></i> قبول المشوار
+            </button>
+            <button onclick="captainRejectTrip()" class="bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 rounded-xl text-xs shadow flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-circle-xmark"></i> رفض
+            </button>
+          </div>
+        </div>
+
+        <!-- مراحل التنفيذ -->
+        <div id="driverActiveTripBox" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div class="flex justify-between items-center text-xs font-bold text-slate-800">
+            <span id="driverTripPhaseText">المرحلة: التوجه للعميل</span>
+            <span class="text-emerald-700 font-extrabold" id="driverActiveTripFare"></span>
+          </div>
+
+          <div class="space-y-2">
+            <button onclick="captainNotifyArrived()" id="btnCaptainArrived" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black py-3 rounded-xl shadow flex items-center justify-center gap-2">
+              <i class="fa-solid fa-location-dot"></i> تم الوصول للعميل
+            </button>
+            <button onclick="captainStartTrip()" id="btnCaptainStartTrip" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-3 rounded-xl shadow flex items-center justify-center gap-2">
+              <i class="fa-solid fa-play"></i> بدء الرحلة الآن
+            </button>
+            <button onclick="captainCompleteTrip()" id="btnCaptainCompleteTrip" class="hidden w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-black py-3 rounded-xl shadow flex items-center justify-center gap-2">
+              <i class="fa-solid fa-flag-checkered"></i> إنهاء الرحلة وتحصيل المبلغ
+            </button>
+          </div>
+        </div>
+
+        <div id="driverIdleBox" class="p-8 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+          <i class="fa-solid fa-satellite-dish text-3xl text-emerald-500 animate-pulse mb-2"></i>
+          <p class="text-xs font-bold">بانتظار طلبات مشاوير جديدة في منطقتك...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. لوحة تحكم الأدمن والمشرفين المتطورة -->
+    <section id="view-admin" class="page-view hidden space-y-5">
+      <div class="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center shadow-lg">
+        <div>
+          <h2 class="font-black text-sm text-amber-400 flex items-center gap-2">
+            <i class="fa-solid fa-crown"></i> مركز التحكم الشامل (Admin & Moderators Console)
+          </h2>
+          <p class="text-xs text-slate-400" id="adminWelcomeTitle">إدارة النظام وصلاحيات المشرفين</p>
+        </div>
+        <button onclick="logoutUser()" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold">تسجيل خروج</button>
+      </div>
+
+      <!-- أزرار تبويبات الأدمن -->
+      <div class="flex overflow-x-auto border-b border-slate-200 bg-white p-2 rounded-2xl shadow-sm gap-2 text-xs font-bold scrollbar-none">
+        <button onclick="switchAdminTab('captains')" id="btn-adm-captains" class="admin-tab-btn flex-shrink-0 px-4 py-2.5 rounded-xl bg-emerald-600 text-white">
+          <i class="fa-solid fa-id-card ml-1"></i> وثائق الكباتن (<span id="adminPendingCount">0</span>)
+        </button>
+        <button onclick="switchAdminTab('governorates')" id="btn-adm-governorates" class="admin-tab-btn flex-shrink-0 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-map-location ml-1 text-blue-600"></i> محافظات مصر (فتح/إغلاق)
+        </button>
+        <button onclick="switchAdminTab('features')" id="btn-adm-features" class="admin-tab-btn flex-shrink-0 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-wand-magic-sparkles ml-1 text-purple-600"></i> الأدوات والكوبونات والذروة
+        </button>
+        <button onclick="switchAdminTab('moderators')" id="btn-adm-moderators" class="admin-tab-btn flex-shrink-0 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-users-gear ml-1 text-amber-600"></i> إدارة المشرفين
+        </button>
+        <button onclick="switchAdminTab('patches')" id="btn-adm-patches" class="admin-tab-btn flex-shrink-0 px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-terminal ml-1 text-slate-800"></i> محرك الباتشات البرمجية
+        </button>
+      </div>
+
+      <!-- تبويب 1: وثائق الكباتن -->
+      <div id="admintab-captains" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <h3 class="font-black text-sm text-slate-800">طلبات الكباتن الجدد بانتظار الاعتماد</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b">
+                <th class="p-3">الكابتن</th>
+                <th class="p-3">الهاتف واللوحة</th>
+                <th class="p-3">المركبة</th>
+                <th class="p-3">المستندات</th>
+                <th class="p-3">الحالة</th>
+                <th class="p-3 text-center">القرار</th>
+              </tr>
+            </thead>
+            <tbody id="adminCaptainsListTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- تبويب 2: إدارة المحافظات الجغرافية (فتح وإغلاق الخدمة) -->
+      <div id="admintab-governorates" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-black text-sm text-slate-800">نطاق التغطية والعمل بالمحافظات المصرية</h3>
+            <p class="text-xs text-slate-500">تحكم لحظي في فتح الخدمة أو إغلاقها في أي محافظة بضغطة زر</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="adminGovernoratesGrid"></div>
+      </div>
+
+      <!-- تبويب 3: الأدوات التنافسية (الكوبونات + الذروة + المزايدة) -->
+      <div id="admintab-features" class="hidden space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- إعدادات الذروة والمزايدة -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+            <h3 class="font-black text-sm text-slate-800 border-b pb-2">تسعير الذروة والمزايدة</h3>
+            
+            <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl">
+              <div>
+                <b class="text-xs block">نظام المزايدة والتفاوض (InDrive Style)</b>
+                <span class="text-[11px] text-slate-500">تمكين الركاب والكباتن من التفاوض على السعر</span>
+              </div>
+              <button onclick="toggleFeatureSetting('biddingEnabled')" id="btnToggleBidding" class="px-3 py-1 rounded-lg text-xs font-bold"></button>
+            </div>
+
+            <div class="p-2.5 bg-slate-50 rounded-xl space-y-2">
+              <div class="flex justify-between items-center">
+                <div>
+                  <b class="text-xs block">مضاعف تسعير أوقات الذروة (Surge)</b>
+                  <span class="text-[11px] text-slate-500">مضاعفة الأجرة عند الزحام الشديد</span>
+                </div>
+                <button onclick="toggleFeatureSetting('surgeActive')" id="btnToggleSurge" class="px-3 py-1 rounded-lg text-xs font-bold"></button>
+              </div>
+              <div class="flex items-center gap-2 pt-1 border-t">
+                <span class="text-xs font-bold">نسبة المضاعفة:</span>
+                <input type="number" step="0.1" id="surgeMultiplierInput" class="w-20 border rounded p-1 font-bold text-xs" onchange="updateSurgeMultiplier(this.value)">
+                <span class="text-xs text-slate-500">ضعف السعر الأساسي (مثال 1.3)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- إدارة كوبونات الخصم -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-black text-sm text-slate-800">كوبونات وأكواد الخصم الترويجي</h3>
+              <button onclick="openNewPromoModal()" class="text-xs font-bold text-emerald-700 hover:underline">+ إضافة كوبون</button>
+            </div>
+            <div id="adminPromoCodesList" class="space-y-2 max-h-48 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- تبويب 4: إدارة وتعيين المشرفين والصلاحيات -->
+      <div id="admintab-moderators" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-black text-sm text-slate-800">إدارة فريق المشرفين ومسؤولي العمليات</h3>
+            <p class="text-xs text-slate-500">تعيين مشرفين وتحديد صلاحياتهم لدخول لوحة التحكم</p>
+          </div>
+          <button onclick="openNewModeratorModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 px-3 py-2 rounded-xl font-bold text-xs shadow">
+            + إضافة مشرف جديد
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b">
+                <th class="p-3">اسم المشرف</th>
+                <th class="p-3">رقم الهاتف</th>
+                <th class="p-3">الصلاحيات الممنوحة</th>
+                <th class="p-3 text-center">التحكم</th>
+              </tr>
+            </thead>
+            <tbody id="adminModeratorsListTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- تبويب 5: حاقن الباتشات -->
+      <div id="admintab-patches" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="font-black text-sm text-slate-800">محرك وحاقن الباتشات البرمجية المباشر</h3>
+          <button onclick="openNewPatchModal()" class="bg-amber-400 hover:bg-amber-500 text-slate-900 px-3 py-1.5 rounded-xl font-bold text-xs">+ إضافة باتش</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 border-b">
+                <th class="p-3">اسم الباتش</th>
+                <th class="p-3">النوع</th>
+                <th class="p-3">الحالة</th>
+                <th class="p-3 text-center">إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="adminPatchesListTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. واجهة تسجيل الدخول والاشتراك -->
+    <section id="view-auth" class="page-view max-w-md mx-auto bg-white p-6 rounded-3xl shadow-2xl border border-slate-200 space-y-5">
+      <div class="text-center space-y-1">
+        <div class="w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-3xl font-black mx-auto shadow-lg">ت</div>
+        <h3 class="text-lg font-black text-slate-800">تطبيق توصيلة مصر</h3>
+        <p class="text-xs text-slate-500">سجل دخولك أو افتح حساب جديد للبدء</p>
+      </div>
+
+      <div class="flex border p-1 rounded-2xl bg-slate-50 text-xs font-bold">
+        <button onclick="switchAuthTab('login')" id="btnAuthTabLogin" class="flex-1 py-2 rounded-xl bg-emerald-600 text-white transition">تسجيل الدخول</button>
+        <button onclick="switchAuthTab('reg-customer')" id="btnAuthTabRegCust" class="flex-1 py-2 rounded-xl text-slate-600 transition">عميل جديد</button>
+        <button onclick="switchAuthTab('reg-captain')" id="btnAuthTabRegCap" class="flex-1 py-2 rounded-xl text-slate-600 transition">تسجيل كابتن</button>
+      </div>
+
+      <!-- نموذج تسجيل الدخول الموحد -->
+      <form id="formLogin" onsubmit="handleUserLogin(event)" class="space-y-3.5 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">رقم الهاتف أو البريد الإلكتروني</label>
+          <input type="text" id="loginIdentifier" placeholder="010XXXXXXXX أو البريد" required class="w-full border rounded-xl p-3 font-bold font-mono outline-none focus:border-emerald-600 bg-slate-50">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">كلمة المرور</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required class="w-full border rounded-xl p-3 font-bold font-mono outline-none focus:border-emerald-600 bg-slate-50">
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl shadow-lg transition">
+          تسجيل الدخول للمنصة
+        </button>
+      </form>
+
+      <!-- تسجيل عميل جديد -->
+      <form id="formRegCustomer" onsubmit="handleRegisterCustomer(event)" class="hidden space-y-3.5 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">الاسم الكامل</label>
+          <input type="text" id="regCustName" required placeholder="محمد أحمد..." class="w-full border rounded-xl p-2.5 font-bold outline-none">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">رقم الهاتف المحمول</label>
+          <input type="tel" id="regCustPhone" required placeholder="010XXXXXXXX" class="w-full border rounded-xl p-2.5 font-bold font-mono outline-none">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">كلمة المرور الجديدة</label>
+          <input type="password" id="regCustPass" required placeholder="••••••••" class="w-full border rounded-xl p-2.5 font-bold font-mono outline-none">
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl shadow-lg transition">
+          إنشاء حساب عميل
+        </button>
+      </form>
+
+      <!-- تسجيل كابتن جديد -->
+      <form id="formRegCaptain" onsubmit="handleRegisterCaptain(event)" class="hidden space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">اسم الكابتن</label>
+            <input type="text" id="regCapName" required placeholder="الاسم الرباعي" class="w-full border rounded-xl p-2 font-bold outline-none">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">رقم المحمول</label>
+            <input type="tel" id="regCapPhone" required placeholder="010XXXXXXXX" class="w-full border rounded-xl p-2 font-bold font-mono outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">نوع المركبة</label>
+            <select id="regCapVehicle" class="w-full border rounded-xl p-2 font-bold outline-none">
+              <option value="سيارة ملاكي">سيارة ملاكي</option>
+              <option value="توكتوك سوهاج">توكتوك</option>
+              <option value="موتوسيكل سريع">موتوسيكل</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">رقم اللوحة</label>
+            <input type="text" id="regCapPlate" required placeholder="هـ ص ج 1234" class="w-full border rounded-xl p-2 font-bold outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">كلمة المرور</label>
+          <input type="password" id="regCapPass" required placeholder="••••••••" class="w-full border rounded-xl p-2 font-bold font-mono outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <div class="border border-dashed p-2 rounded-xl text-center bg-slate-50">
+            <span class="block font-bold text-[10px] text-slate-600 mb-1">بطاقة الرقم القومي (وجه)</span>
+            <input type="file" accept="image/*" required onchange="handleCompressUpload(event, 'idFront')" class="text-[9px] w-full">
+          </div>
+          <div class="border border-dashed p-2 rounded-xl text-center bg-slate-50">
+            <span class="block font-bold text-[10px] text-slate-600 mb-1">بطاقة الرقم القومي (ظهر)</span>
+            <input type="file" accept="image/*" required onchange="handleCompressUpload(event, 'idBack')" class="text-[9px] w-full">
+          </div>
+          <div class="border border-dashed p-2 rounded-xl text-center bg-slate-50">
+            <span class="block font-bold text-[10px] text-slate-600 mb-1">رخصة القيادة السارية</span>
+            <input type="file" accept="image/*" required onchange="handleCompressUpload(event, 'licenseDrive')" class="text-[9px] w-full">
+          </div>
+          <div class="border border-dashed p-2 rounded-xl text-center bg-slate-50">
+            <span class="block font-bold text-[10px] text-slate-600 mb-1">رخصة تسيير المركبة</span>
+            <input type="file" accept="image/*" required onchange="handleCompressUpload(event, 'licenseCar')" class="text-[9px] w-full">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-black py-3 rounded-xl shadow-lg transition">
+          تقديم المستندات والطلب للإدارة
+        </button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- نافذة إضافة مشرف جديد وتحديد الصلاحيات -->
+  <div id="addModeratorModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 text-xs">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-sm text-slate-800">تعيين مشرف جديد للوحة التحكم</h3>
+        <button onclick="closeNewModeratorModal()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form onsubmit="handleSaveModerator(event)" class="space-y-3">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">اسم المشرف</label>
+          <input type="text" id="modNameInput" required placeholder="مثال: م. علي إبراهيم" class="w-full border rounded-xl p-2 font-bold outline-none">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">رقم الهاتف للدخول</label>
+          <input type="tel" id="modPhoneInput" required placeholder="010XXXXXXXX" class="w-full border rounded-xl p-2 font-bold font-mono outline-none">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">كلمة المرور</label>
+          <input type="password" id="modPassInput" required placeholder="••••••••" class="w-full border rounded-xl p-2 font-bold font-mono outline-none">
+        </div>
+
+        <div class="bg-slate-50 border p-3 rounded-xl space-y-2">
+          <span class="font-black text-slate-800 block text-xs">الصلاحيات الممنوحة للمشرف:</span>
+          <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" id="permCaptains" checked><span>اعتماد ومراجعة وثائق الكباتن</span></label>
+          <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" id="permGovernorates" checked><span>فتح وإغلاق المحافظات</span></label>
+          <label class="flex items-center gap-2 font-bold cursor-pointer"><input type="checkbox" id="permFeatures"><span>التحكم في الكوبونات والذروة والمزايدة</span></label>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeNewModeratorModal()" class="px-4 py-2 border rounded-xl font-bold">إلغاء</button>
+          <button type="submit" class="flex-1 bg-emerald-600 text-white font-black py-2 rounded-xl shadow">حفظ المشرف وتفعيله</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة إضافة كوبون خصم جديد -->
+  <div id="addPromoModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 text-xs">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-sm text-slate-800">إضافة كود خصم جديد</h3>
+        <button onclick="closeNewPromoModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="handleSavePromo(event)" class="space-y-3">
+        <div>
+          <label class="font-bold block mb-1">كود الخصم (Promo Code)</label>
+          <input type="text" id="promoCodeVal" required placeholder="EGYPT2026" class="uppercase w-full border rounded-xl p-2 font-bold font-mono">
+        </div>
+        <div>
+          <label class="font-bold block mb-1">نسبة الخصم المئوية (%)</label>
+          <input type="number" id="promoDiscountVal" required min="5" max="90" value="20" class="w-full border rounded-xl p-2 font-bold">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeNewPromoModal()" class="px-4 py-2 border rounded-xl font-bold">إلغاء</button>
+          <button type="submit" class="flex-1 bg-emerald-600 text-white font-black py-2 rounded-xl shadow">حفظ الكود</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة تقييم الرحلة بالنجوم بعد الانتهاء -->
+  <div id="ratingModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 text-xs text-center">
+    <div class="bg-white w-full max-w-xs rounded-3xl p-5 space-y-4 shadow-2xl">
+      <div class="w-12 h-12 bg-amber-400 text-white rounded-full flex items-center justify-center mx-auto text-xl shadow">
+        <i class="fa-solid fa-star"></i>
+      </div>
+      <div>
+        <h3 class="font-black text-sm text-slate-800">تقييم المشوار</h3>
+        <p class="text-[11px] text-slate-500">كيف كانت تجربتك مع الكابتن؟</p>
+      </div>
+      <div class="flex justify-center gap-2 text-2xl text-amber-400 cursor-pointer" id="starsRatingContainer">
+        <i class="fa-solid fa-star" onclick="setRating(1)"></i>
+        <i class="fa-solid fa-star" onclick="setRating(2)"></i>
+        <i class="fa-solid fa-star" onclick="setRating(3)"></i>
+        <i class="fa-solid fa-star" onclick="setRating(4)"></i>
+        <i class="fa-solid fa-star" onclick="setRating(5)"></i>
+      </div>
+      <button onclick="submitRating()" class="w-full bg-emerald-600 text-white font-black py-2.5 rounded-xl shadow">إرسال التقييم</button>
+    </div>
+  </div>
+
+  <!-- النوافذ السابقة المعتمدة (وثائق، باتشات، شحن، شات، ومكالمة) -->
+  <div id="adminDocsInspectModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xl rounded-3xl p-5 space-y-4 shadow-2xl text-xs max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-sm text-slate-800" id="inspectCaptainTitle">مستندات الكابتن</h3>
+        <button onclick="closeDocsInspectModal()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="grid grid-cols-2 gap-3" id="inspectImagesGrid"></div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button onclick="closeDocsInspectModal()" class="px-4 py-2 border rounded-xl font-bold">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="patchEditorModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xl rounded-3xl p-5 space-y-3 shadow-2xl text-xs">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-sm" id="patchModalTitle">محرر وحاقن الباتشات البرمجية</h3>
+        <button onclick="closePatchModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="handleSavePatch(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" id="patchNameInput" placeholder="اسم الباتش" class="border p-2 rounded-lg font-bold outline-none" required>
+          <select id="patchTypeInput" class="border p-2 rounded-lg font-bold outline-none">
+            <option value="css">CSS (تصميم)</option>
+            <option value="js">JavaScript (برمجة)</option>
+            <option value="html">HTML (عناصر)</option>
+          </select>
+        </div>
+        <textarea id="patchCodeInput" rows="7" placeholder="اكتب الكود هنا..." class="w-full bg-slate-950 text-emerald-400 font-code p-3 rounded-xl text-xs outline-none" required></textarea>
+        <div class="flex justify-end gap-2">
+          <button type="button" onclick="closePatchModal()" class="px-4 py-2 border rounded-lg font-bold">إلغاء</button>
+          <button type="submit" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-black">حفظ وحقن فوراً</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="walletModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 text-xs">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-sm text-slate-800">شحن الرصيد</h3>
+        <button onclick="closeWalletModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="number" id="walletRechargeAmount" value="50" class="w-full border rounded-xl p-2 font-black outline-none">
+      <button onclick="confirmCustomerRecharge()" class="w-full bg-emerald-600 text-white font-black py-2.5 rounded-xl shadow">تأكيد شحن المحفظة</button>
+    </div>
+  </div>
+
+  <div id="chatModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 text-xs">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col h-[420px] overflow-hidden">
+      <div class="bg-emerald-600 text-white p-3 flex justify-between items-center"><h4 class="font-bold">شات المشوار المباشر</h4><button onclick="closeChatModal()"><i class="fa-solid fa-xmark"></i></button></div>
+      <div id="chatMessagesBox" class="flex-grow p-4 overflow-y-auto space-y-2 bg-slate-50"></div>
+      <form onsubmit="handleSendChatMessage(event)" class="p-2 bg-white border-t flex gap-2">
+        <input type="text" id="chatInputText" placeholder="اكتب رسالتك للكابتن..." class="flex-grow border rounded-xl px-3 py-2 outline-none" required>
+        <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold"><i class="fa-solid fa-paper-plane"></i></button>
+      </form>
+    </div>
+  </div>
+
+  <div id="voiceCallModal" class="hidden fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 text-white text-center">
+    <div class="bg-slate-800 w-full max-w-xs rounded-3xl p-6 space-y-4 shadow-2xl border border-slate-700">
+      <div class="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto animate-pulse"><i class="fa-solid fa-phone"></i></div>
+      <h3 class="text-sm font-black">مكالمة صوتية مشفرة...</h3>
+      <h4 class="text-emerald-400 font-mono text-xs font-bold" id="callDuration">00:00</h4>
+      <button onclick="endVoiceCall()" class="w-12 h-12 bg-rose-600 rounded-full text-white mx-auto flex items-center justify-center text-lg"><i class="fa-solid fa-phone-slash"></i></button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
