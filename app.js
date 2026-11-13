@@ -5,7 +5,7 @@
  */
 
 // 1) ضع رابط Firebase Realtime Database هنا ليظل محفوظاً حتى بعد مسح بيانات المتصفح
-const DEFAULT_FIREBASE_DB_URL = ""; // مثال: "https://tawsila-app-default-rtdb.firebaseio.com"
+const DEFAULT_FIREBASE_DB_URL = "https://tawsila-37a80-default-rtdb.firebaseio.com/"; // مثال: "https://tawsila-app-default-rtdb.firebaseio.com"
 
 const SUPER_ADMIN = {
   phone: "01068131386",
