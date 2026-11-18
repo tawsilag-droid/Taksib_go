@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>توصيلة سوهاج - توصيل الأفراد</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
+  <style id="base-styles">
+    :root {
+      --primary: #0f766e;
+      --primary-dark: #115e59;
+      --primary-light: #ccfbf1;
+      --accent: #f59e0b;
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --radius: 16px;
+      --shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 1140px;
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      padding-bottom: 78px;
+    }
+
+    .announcement-bar {
+      background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+      color: #fff;
+      font-size: 0.83rem;
+      padding: 7px 14px;
+      text-align: center;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .install-pwa-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: none;
+    }
+
+    .app-header {
+      background: var(--surface);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 1.35rem;
+      font-weight: 800;
+      box-shadow: 0 4px 10px rgba(15, 118, 110, 0.25);
+    }
+
+    .brand-info h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--primary-dark);
+      line-height: 1.2;
+    }
+
+    .brand-info span { font-size: 0.72rem; color: var(--muted); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .conn-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .conn-pill.online { background: #dcfce7; color: #166534; }
+    .conn-pill.error { background: #fee2e2; color: #991b1b; }
+
+    .role-switch {
+      display: flex;
+      background: var(--bg);
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      gap: 4px;
+    }
+
+    .role-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .role-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
+    }
+
+    .main-content {
+      padding: 16px;
+      flex: 1;
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 860px) {
+      .grid-2 {
+        grid-template-columns: 1.15fr 0.85fr;
+        align-items: start;
+      }
+      .app-shell { padding-bottom: 24px; }
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .map-wrapper {
+      position: relative;
+      height: 280px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, #e0f2fe 0%, #dcfce7 100%);
+    }
+
+    #sohag-map { width: 100%; height: 100%; z-index: 1; }
+
+    .map-fallback {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+      background: radial-gradient(circle at center, #f0fdfa 0%, #ccfbf1 100%);
+      color: var(--primary-dark);
+      z-index: 2;
+    }
+
+    .map-badge {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 400;
+      background: rgba(255,255,255,0.95);
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      color: var(--primary-dark);
+    }
+
+    .gps-btn-float {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 400;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      color: var(--primary-dark);
+    }
+
+    .form-group { margin-bottom: 12px; }
+
+    label {
+      display: block;
+      font-size: 0.84rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+
+    select, input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.92rem;
+      background: #f8fafc;
+      color: var(--text);
+      outline: none;
+      transition: 0.2s;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: 0.2s;
+      text-decoration: none;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-whatsapp { background: #25D366; color: #fff; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 9px; width: auto; }
+
+    .vehicles-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .vehicle-card {
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s;
+      background: #fff;
+    }
+
+    .vehicle-card.selected {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .vehicle-icon { font-size: 1.6rem; display: block; }
+    .vehicle-name { font-size: 0.8rem; font-weight: 800; display: block; margin-top: 2px; }
+    .vehicle-price { font-size: 0.78rem; color: var(--primary-dark); font-weight: 700; }
+
+    .payment-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .pay-option {
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 9px;
+      text-align: center;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .pay-option.selected {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    .wallet-hero {
+      background: linear-gradient(135deg, #0f766e, #0d9488);
+      color: #fff;
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .wallet-balance { font-size: 1.8rem; font-weight: 800; }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 1140px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 4px;
+      z-index: 60;
+    }
+
+    @media (min-width: 860px) {
+      .bottom-nav {
+        position: static;
+        transform: none;
+        border-top: none;
+        border-bottom: 1px solid var(--border);
+        background: #f8fafc;
+        justify-content: center;
+        gap: 24px;
+      }
+    }
+
+    .nav-item {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 10px;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .nav-item span.ico { font-size: 1.2rem; }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .badge-warn { background: #fef3c7; color: #b45309; }
+    .badge-ok { background: #dcfce7; color: #15803d; }
+    .badge-info { background: #dbeafe; color: #1d4ed8; }
+    .badge-danger { background: #fee2e2; color: #b91c1c; }
+
+    .list-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      margin: 14px 0;
+    }
+    .step {
+      flex: 1;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .step-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--border);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 4px;
+      font-size: 0.75rem;
+    }
+    .step.done .step-dot { background: var(--primary); }
+    .step.done { color: var(--primary-dark); }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      z-index: 999;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal-box {
+      background: var(--surface);
+      width: 100%;
+      max-width: 880px;
+      max-height: 92vh;
+      overflow-y: auto;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+      animation: popIn 0.2s ease;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .admin-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-num { font-size: 1.35rem; font-weight: 800; color: var(--primary); }
+
+    .code-editor {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      direction: ltr;
+      text-align: left;
+      font-size: 0.8rem;
+      background: #0f172a;
+      color: #38bdf8;
+      min-height: 130px;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .inject-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 0.86rem;
+      font-weight: 700;
+      z-index: 2000;
+      display: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      max-width: 92%;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+
+    .app-footer {
+      text-align: center;
+      padding: 12px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      user-select: none;
+    }
+  </style>
+  <!-- حقن CSS الديناميكي من أداة الباتشات -->
+  <style id="patch-dynamic-css"></style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="app-shell">
+  <!-- شريط الإعلانات + زر تثبيت التطبيق -->
+  <div class="announcement-bar">
+    <span>🚖</span>
+    <span id="announcementText">أهلاً بك في توصيلة سوهاج — خصم 50 ج.م على شحنتك بكود SOHAG50</span>
+    <button class="install-pwa-btn" id="installPwaBtn" onclick="installPWA()">📲 تثبيت التطبيق</button>
+  </div>
+
+  <!-- الهيدر -->
+  <header class="app-header">
+    <div class="brand" id="secretBrandTrigger" title="توصيلة سوهاج">
+      <div class="brand-logo">س</div>
+      <div class="brand-info">
+        <h1 id="appTitleDisplay">توصيلة سوهاج</h1>
+        <span>محافظة سوهاج • <span id="appVersionBadge">v2.0.0</span></span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <span class="conn-pill" id="firebaseStatusPill">⏳ جاري الاتصال...</span>
+      <div class="role-switch">
+        <button class="role-btn active" id="switchCustomerBtn" onclick="switchRole('customer')">👤 العميل</button>
+        <button class="role-btn" id="switchCaptainBtn" onclick="switchRole('captain')">🚕 الكابتن</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- حاوية حقن HTML مخصص من أداة الباتش (تظهر عند الحقن فقط) -->
+  <div id="patch-custom-html" style="padding:0 16px;"></div>
+
+  <!-- تبويبات العميل -->
+  <nav class="bottom-nav" id="customerNav">
+    <button class="nav-item active" onclick="switchCustomerTab('book', this)">
+      <span class="ico">🗺️</span><span>اطلب رحلة</span>
+    </button>
+    <button class="nav-item" onclick="switchCustomerTab('wallet', this)">
+      <span class="ico">💳</span><span>المحفظة</span>
+    </button>
+    <button class="nav-item" onclick="switchCustomerTab('trips', this)">
+      <span class="ico">📋</span><span>رحلاتي</span>
+    </button>
+  </nav>
+
+  <!-- ==================== واجهة العميل ==================== -->
+  <main class="main-content" id="customerView">
+    <!-- هوية العميل -->
+    <div class="card" style="padding:12px 16px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="font-size:0.86rem;">
+        <strong>👤 حسابك:</strong> <span id="custProfileLabel">عميل سوهاج</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="custNameInput" placeholder="اسمك" style="width:125px; padding:6px 10px; font-size:0.82rem;" />
+        <input type="tel" id="custPhoneInput" placeholder="رقم الموبايل" style="width:135px; padding:6px 10px; font-size:0.82rem;" />
+        <button class="btn btn-primary btn-sm" onclick="saveCustomerIdentity()">حفظ / ربط الحساب</button>
+      </div>
+    </div>
+
+    <!-- تبويب حجز رحلة -->
+    <section id="custTabBook" class="grid-2">
+      <div class="card">
+        <div class="card-title">
+          <span>📍 خريطة محافظة سوهاج</span>
+          <span class="badge badge-info" id="distanceBadge">المسافة التقريبية: 0 كم</span>
+        </div>
+        <div class="map-wrapper">
+          <div id="sohag-map"></div>
+          <button class="gps-btn-float" onclick="detectCustomerGPS()">📍 حدد موقعي الحالي (GPS)</button>
+          <div class="map-fallback" id="mapFallback">
+            <div style="font-size:2.4rem">🗺️</div>
+            <strong>خريطة سوهاج التفاعلية</strong>
+            <small id="fallbackRouteText">اختر نقطة الانطلاق والوصول لحساب المسار</small>
+          </div>
+          <div class="map-badge" id="mapStatusBadge">مركز سوهاج والمحافظة</div>
+        </div>
+
+        <!-- تتبع الرحلة النشطة -->
+        <div id="activeRideCard" class="list-item hidden" style="margin-top:14px; background:#f0fdfa; border-color:var(--primary);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>🚕 رحلتك الحالية (مباشر)</strong>
+            <span class="badge badge-warn" id="activeRideStatusText">جاري البحث عن كابتن...</span>
+          </div>
+          <div class="stepper" id="rideStepper">
+            <div class="step done"><div class="step-dot">1</div>طلب</div>
+            <div class="step"><div class="step-dot">2</div>قبول</div>
+            <div class="step"><div class="step-dot">3</div>وصول</div>
+            <div class="step"><div class="step-dot">4</div>انطلاق</div>
+            <div class="step"><div class="step-dot">5</div>انتهاء</div>
+          </div>
+          <div id="activeRideDetails" style="font-size:0.84rem;"></div>
+          <div id="activeRideActions" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>🚖 تفاصيل المشوار</span>
+          <span class="badge badge-ok" id="miniWalletBadge">رصيدك: 0 ج.م</span>
+        </div>
+
+        <div class="form-group">
+          <label style="display:flex; justify-content:space-between;">
+            <span>نقطة الانطلاق (منين؟)</span>
+            <a href="javascript:void(0)" onclick="detectCustomerGPS()" style="font-size:0.78rem; color:var(--primary);">📍 استخدام الـ GPS</a>
+          </label>
+          <select id="pickupSelect" onchange="recalculateRide()"></select>
+        </div>
+
+        <div class="form-group">
+          <label>نقطة الوصول (رايح فين؟)</label>
+          <select id="dropoffSelect" onchange="recalculateRide()"></select>
+        </div>
+
+        <div class="form-group">
+          <label>وصف إضافي للعنوان (اختياري)</label>
+          <input type="text" id="addressNote" placeholder="مثال: أمام مستشفى سوهاج الجامعي / شارع 15" />
+        </div>
+
+        <label>اختر نوع المركبة</label>
+        <div class="vehicles-grid" id="vehiclesGrid"></div>
+
+        <label>طريقة الدفع</label>
+        <div class="payment-toggle">
+          <div class="pay-option selected" id="payWalletOpt" onclick="selectPayment('wallet')">💳 المحفظة</div>
+          <div class="pay-option" id="payCashOpt" onclick="selectPayment('cash')">💵 كاش للكابتن</div>
+        </div>
+
+        <button class="btn btn-primary" onclick="requestRide()">تأكيد وطلب الكابتن الآن</button>
+      </div>
+    </section>
+
+    <!-- تبويب محفظة العميل -->
+    <section id="custTabWallet" class="hidden">
+      <div class="grid-2">
+        <div class="card">
+          <div class="wallet-hero">
+            <div>
+              <div style="font-size:0.88rem; opacity:0.9;">رصيد محفظة العميل</div>
+              <div class="wallet-balance" id="walletBalanceDisplay">0.00 ج.م</div>
+            </div>
+            <div style="font-size:2.4rem;">💳</div>
+          </div>
+
+          <div class="card-title">شحن رصيد المحفظة</div>
+          <div class="form-group">
+            <label>المبلغ بالجنيه المصري (ج.م)</label>
+            <input type="number" id="topupAmount" value="100" min="10" max="5000" />
+          </div>
+          <div class="form-group">
+            <label>وسيلة الشحن</label>
+            <select id="topupMethod">
+              <option value="فودافون كاش">فودافون كاش (محفظة إلكترونية)</option>
+              <option value="إنستاباي InstaPay">إنستاباي InstaPay</option>
+              <option value="بطاقة بنكية">بطاقة بنكية (ميزة / فيزا)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>كود برومو هدية (جرب: SOHAG50)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="promoInput" placeholder="أدخل الكود..." />
+              <button class="btn btn-accent btn-sm" onclick="applyPromoCode()">تفعيل</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="rechargeWallet()">إضافة الرصيد للمحفظة</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📜 سجل عمليات المحفظة</div>
+          <div id="walletHistoryList" style="max-height:360px; overflow-y:auto;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- تبويب رحلاتي -->
+    <section id="custTabTrips" class="hidden">
+      <div class="card">
+        <div class="card-title">📋 سجل رحلاتك في سوهاج</div>
+        <div id="customerTripsList"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== واجهة الكابتن ==================== -->
+  <main class="main-content hidden" id="captainView">
+    <div class="card" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;">
+      <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <h2 style="font-size:1.02rem;">🚕 كابتن:</h2>
+        <input type="text" id="capNameInput" style="width:155px; padding:6px 10px; font-size:0.84rem;" />
+        <input type="tel" id="capPhoneInput" style="width:130px; padding:6px 10px; font-size:0.84rem;" />
+        <button class="btn btn-primary btn-sm" onclick="saveCaptainIdentity()">حفظ</button>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" id="soundToggleBtn" onclick="toggleCaptainSound()">🔊 الصوت: مفعل</button>
+        <span class="badge badge-ok" id="captainStatusBadge">متصل</span>
+        <button class="btn btn-outline btn-sm" onclick="toggleCaptainOnline()">تغيير الحالة</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-num" id="capWalletDisplay">50 ج.م</div>
+        <small>محفظة الكابتن (للعمولة)</small>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="capEarningsDisplay">0 ج.م</div>
+        <small>صافي أرباح الرحلات</small>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="capCompletedCount">0</div>
+        <small>رحلات مكتملة</small>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="capCommissionRateLabel">10%</div>
+        <small>عمولة التطبيق</small>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">
+          <span>🔔 طلبات العملاء المباشرة</span>
+          <span class="badge badge-info" id="liveRequestsCount">0 طلب</span>
+        </div>
+        <div id="captainRequestsList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>🚘 الرحلة قيد التنفيذ</span>
+          <button class="btn btn-outline btn-sm" onclick="shareCaptainGPS()">📍 تحديث موقعي للعميل</button>
+        </div>
+        <div id="captainActivePanel">
+          <p style="color:var(--muted); font-size:0.9rem;">لا توجد رحلة قيد التنفيذ حالياً.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    جميع الحقوق محفوظة © <span id="footerAppName">توصيلة سوهاج</span> — <span id="secretVersionTrigger" style="cursor:default;">الإصدار 2.0.0</span>
+  </footer>
+</div>
+
+<!-- ==================== مودال الدخول السري للأدمن ==================== -->
+<div class="modal-backdrop" id="adminAuthModal">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="card-title">
+      <span>🔐 دخول الإدارة السري</span>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('adminAuthModal')">✕</button>
+    </div>
+    <p style="font-size:0.84rem; color:var(--muted); margin-bottom:12px;">هذه المنطقة مخصصة لمدير النظام فقط.</p>
+    <div class="form-group">
+      <label>الرمز السري</label>
+      <input type="password" id="adminSecretInput" placeholder="أدخل الرمز السري..." onkeydown="if(event.key==='Enter') verifyAdminLogin()" />
+    </div>
+    <button class="btn btn-primary" onclick="verifyAdminLogin()">دخول للوحة التحكم</button>
+  </div>
+</div>
+
+<!-- ==================== لوحة تحكم الأدمن السرية + أداة حقن الأكواد والباتشات ==================== -->
+<div class="modal-backdrop" id="adminDashboardModal">
+  <div class="modal-box">
+    <div class="card-title">
+      <span>🛡️ لوحة تحكم الأدمن السرية — سوهاج</span>
+      <button class="btn btn-danger btn-sm" onclick="closeModal('adminDashboardModal')">إغلاق</button>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="btn btn-primary btn-sm" onclick="switchAdminTab('overview', this)">📊 نظرة عامة</button>
+      <button class="btn btn-outline btn-sm" onclick="switchAdminTab('pricing', this)">💰 الأسعار والمناطق</button>
+      <button class="btn btn-outline btn-sm" onclick="switchAdminTab('wallets', this)">💳 المحافظ (عملاء وكباتن)</button>
+      <button class="btn btn-outline btn-sm" onclick="switchAdminTab('rides', this)">🚖 الرحلات المباشرة</button>
+      <button class="btn btn-accent btn-sm" onclick="switchAdminTab('patch', this)">🧩 أداة الباتش وحقن الأكواد</button>
+    </div>
+
+    <!-- تبويب 1: نظرة عامة -->
+    <div id="admTabOverview">
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-num" id="admTotalTrips">0</div><small>إجمالي الرحلات</small></div>
+        <div class="stat-box"><div class="stat-num" id="admUsersCount">0</div><small>العملاء</small></div>
+        <div class="stat-box"><div class="stat-num" id="admCaptainsCount">0</div><small>الكباتن</small></div>
+        <div class="stat-box"><div class="stat-num" id="admTotalCommission">0 ج.م</div><small>عمولات التطبيق</small></div>
+      </div>
+
+      <div class="list-item">
+        <strong>نص شريط الإعلانات العلوي:</strong>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="admAnnouncementInput" />
+          <button class="btn btn-primary btn-sm" onclick="saveAnnouncement()">نشر</button>
+        </div>
+      </div>
+
+      <div class="list-item">
+        <strong>تغيير الرمز السري للوحة الأدمن:</strong>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="admNewPinInput" placeholder="الرمز السري الجديد..." />
+          <button class="btn btn-accent btn-sm" onclick="saveAdminPin()">تحديث الرمز</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- تبويب 2: الأسعار والمناطق والعمولة -->
+    <div id="admTabPricing" class="hidden">
+      <div class="grid-2" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group"><label>سعر الكيلو - توك توك (ج.م)</label><input type="number" id="admRateTuktuk" step="0.5" /></div>
+        <div class="form-group"><label>سعر الكيلو - ملاكي (ج.م)</label><input type="number" id="admRateCar" step="0.5" /></div>
+        <div class="form-group"><label>سعر الكيلو - فان (ج.م)</label><input type="number" id="admRateVan" step="0.5" /></div>
+        <div class="form-group"><label>فتحة العداد (ج.م)</label><input type="number" id="admBaseFare" step="1" /></div>
+        <div class="form-group"><label>نسبة عمولة التطبيق من الكابتن (%)</label><input type="number" id="admCommissionPct" min="0" max="50" /></div>
+        <div class="form-group"><label>الحد الأدنى لرصيد الكابتن لقبول رحلة (ج.م)</label><input type="number" id="admMinCapWallet" /></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveAdminPricing()">حفظ ونشر التسعيرة والعمولة</button>
+
+      <hr style="margin:14px 0; border-color:var(--border);">
+      <strong>إضافة منطقة جديدة في سوهاج:</strong>
+      <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:8px;">
+        <input type="text" id="newZoneName" placeholder="اسم المنطقة (مثلاً: حي راشد)" />
+        <input type="number" id="newZoneKm" placeholder="البعد عن المركز (كم)" />
+        <button class="btn btn-success btn-sm" onclick="addSohagZone()">+ إضافة</button>
+      </div>
+    </div>
+
+    <!-- تبويب 3: المحافظ -->
+    <div id="admTabWallets" class="hidden">
+      <h4 style="margin-bottom:8px;">👤 محافظ العملاء</h4>
+      <div id="admUsersWalletList" style="max-height:190px; overflow-y:auto; margin-bottom:14px;"></div>
+      <h4 style="margin-bottom:8px;">🚕 محافظ الكباتن (لتحصيل العمولة)</h4>
+      <div id="admCaptainsWalletList" style="max-height:190px; overflow-y:auto;"></div>
+    </div>
+
+    <!-- تبويب 4: الرحلات المباشرة -->
+    <div id="admTabRides" class="hidden">
+      <div id="admRidesList" style="max-height:360px; overflow-y:auto;"></div>
+    </div>
+
+    <!-- تبويب 5: أداة الباتش وحقن الأكواد -->
+    <div id="admTabPatch" class="hidden">
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:10px;">
+        أداة حقن الأكواد والتحديث السحابي الفوري: اكتب تعديلات الإعدادات (JSON) أو احقن أكواد <strong>HTML / CSS / JavaScript</strong> مباشرة ليتم تطبيقها على جميع المستخدمين عبر Firebase.
+      </p>
+
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+        <button class="btn btn-outline btn-sm" onclick="loadSampleInject('banner')">📣 حقن بانر عروض (HTML+CSS)</button>
+        <button class="btn btn-outline btn-sm" onclick="loadSampleInject('discount')">🎁 باتش تخفيض وعمولة</button>
+        <button class="btn btn-outline btn-sm" onclick="loadSampleInject('js_feature')">⚡ حقن زر واتساب الدعم (HTML+JS)</button>
+        <button class="btn btn-outline btn-sm" onclick="exportCurrentConfigAsPatch()">📤 تحميل الإعدادات الحالية</button>
+      </div>
+
+      <div class="inject-tabs">
+        <button class="btn btn-primary btn-sm" onclick="switchInjectEditor('json', this)">⚙️ إعدادات JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="switchInjectEditor('html', this)">🧱 حقن HTML</button>
+        <button class="btn btn-outline btn-sm" onclick="switchInjectEditor('css', this)">🎨 حقن CSS</button>
+        <button class="btn btn-outline btn-sm" onclick="switchInjectEditor('js', this)">⚡ حقن JavaScript</button>
+      </div>
+
+      <textarea id="injJsonInput" class="code-editor" spellcheck="false" placeholder='{ "version": "2.1.0", "announcement": "..." }'></textarea>
+      <textarea id="injHtmlInput" class="code-editor hidden" spellcheck="false" placeholder="<!-- مثال: <div class='card'>إعلان خاص لأهل سوهاج</div> -->"></textarea>
+      <textarea id="injCssInput" class="code-editor hidden" spellcheck="false" placeholder="/* مثال: .brand-logo { border-radius: 50%; } */"></textarea>
+      <textarea id="injJsInput" class="code-editor hidden" spellcheck="false" placeholder="// كود JavaScript ينفذ عند تحديث التطبيق"></textarea>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+        <button class="btn btn-outline btn-sm" onclick="previewInjectedPatchLocally()">👁️ معاينة محلية (قبل النشر)</button>
+        <button class="btn btn-primary btn-sm" onclick="publishInjectedPatch()">🚀 نشر وحقن للجميع (Firebase)</button>
+        <button class="btn btn-danger btn-sm" onclick="clearInjectedCodes()">🧹 مسح الأكواد المحقونة</button>
+        <button class="btn btn-danger btn-sm" onclick="resetToFactoryDefaults()">♻️ استعادة المصنع</button>
+      </div>
+
+      <div style="margin-top:14px;">
+        <strong style="font-size:0.86rem;">سجل الباتشات والأكواد المنشورة:</strong>
+        <div id="patchHistoryList" style="margin-top:6px; max-height:130px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==================== 1. إعدادات Firebase ====================
+  const firebaseConfig = {
+    apiKey: "AIzaSyCInSPfdx4IVQNZP-d5N20Iph9pPrjgEgY",
+    authDomain: "tawsila-37a80.firebaseapp.com",
+    databaseURL: "https://tawsila-37a80-default-rtdb.firebaseio.com",
+    projectId: "tawsila-37a80",
+    storageBucket: "tawsila-37a80.firebasestorage.app",
+    messagingSenderId: "445529499230",
+    appId: "1:445529499230:web:3dd3c1d31414d7576436cf",
+    measurementId: "G-FE5MJE4R28"
+  };
+
+  let db = null;
+  let firebaseReady = false;
+  try {
+    if (typeof firebase !== "undefined") {
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+      firebaseReady = true;
+    }
+  } catch (e) { console.error("Firebase init error:", e); }
+
+  // ==================== 2. PWA (تثبيت التطبيق على الموبايل) ====================
+  let deferredPrompt = null;
+  (function setupInlinePWA() {
+    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#0f766e"/><text x="96" y="128" font-size="105" text-anchor="middle" fill="#fff" font-family="Arial" font-weight="bold">س</text></svg>`;
+    const iconUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgIcon)));
+    const manifest = {
+      name: "توصيلة سوهاج",
+      short_name: "توصيلة سوهاج",
+      start_url: ".",
+      display: "standalone",
+      background_color: "#f1f5f9",
+      theme_color: "#0f766e",
+      icons: [{ src: iconUrl, sizes: "192x192", type: "image/svg+xml" }]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+  })();
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById("installPwaBtn").style.display = "inline-block";
+  });
+
+  function installPWA() {
+    if (!deferredPrompt) return showToast("للتثبيت: من قائمة المتصفح اختر 'إضافة للشاشة الرئيسية'");
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById("installPwaBtn").style.display = "none";
+    });
+  }
+
+  // ==================== 3. الإعدادات الافتراضية ====================
+  const DEFAULT_CONFIG = {
+    appName: "توصيلة سوهاج",
+    version: "2.0.0",
+    announcement: "أهلاً بك في توصيلة سوهاج — خصم 50 ج.م على شحنتك بكود SOHAG50",
+    adminPin: "SOHAG2026",
+    commissionRate: 10,
+    minCaptainWallet: 0,
+    theme: { primary: "#0f766e", primaryDark: "#115e59", accent: "#f59e0b" },
+    baseFare: 10,
+    vehicles: [
+      { id: "tuktuk", name: "توك توك", icon: "🛺", perKm: 3.5 },
+      { id: "car", name: "ملاكي مكيف", icon: "🚗", perKm: 6.0 },
+      { id: "van", name: "فان عائلي", icon: "🚐", perKm: 8.5 }
+    ],
+    zones: [
+      { id: "shg_center", name: "مدينة سوهاج (محطة القطار / الثقافة)", lat: 26.5591, lng: 31.6957, kmFromCenter: 0 },
+      { id: "shg_shoban", name: "ميدان الشبان المسلمين والشهيد", lat: 26.5540, lng: 31.6990, kmFromCenter: 2 },
+      { id: "shg_uni_old", name: "جامعة سوهاج القديمة (شرق)", lat: 26.5645, lng: 31.7085, kmFromCenter: 3 },
+      { id: "akhmim", name: "مركز أخميم", lat: 26.5622, lng: 31.7450, kmFromCenter: 7 },
+      { id: "kawamel", name: "سوهاج الجديدة (الكوامل)", lat: 26.4714, lng: 31.6486, kmFromCenter: 15 },
+      { id: "maragha", name: "مركز المراغة", lat: 26.6989, lng: 31.6033, kmFromCenter: 21 },
+      { id: "manshaah", name: "مركز المنشأة", lat: 26.4769, lng: 31.8036, kmFromCenter: 17 },
+      { id: "tahta", name: "مركز طهطا", lat: 26.7689, lng: 31.5019, kmFromCenter: 32 },
+      { id: "girga", name: "مركز جرجا", lat: 26.3389, lng: 31.8917, kmFromCenter: 35 },
+      { id: "saqultah", name: "مركز ساقلتة", lat: 26.6522, lng: 31.6769, kmFromCenter: 16 },
+      { id: "juhaynah", name: "مركز جهينة", lat: 26.6736, lng: 31.4981, kmFromCenter: 34 },
+      { id: "tama", name: "مركز طما", lat: 26.9125, lng: 31.4383, kmFromCenter: 48 },
+      { id: "balyana", name: "مركز البلينا", lat: 26.2356, lng: 32.0036, kmFromCenter: 52 },
+      { id: "dar_salam", name: "مركز دار السلام", lat: 26.2650, lng: 32.0490, kmFromCenter: 55 }
+    ],
+    customHTML: "",
+    customCSS: "",
+    customJS: "",
+    patchHistory: []
+  };
+
+  // ==================== 4. الحالة العامة ====================
+  const LOCAL_PROFILE_KEY = "sohag_user_profile_v3";
+  let localProfile = JSON.parse(localStorage.getItem(LOCAL_PROFILE_KEY) || "null") || {
+    customerId: "u_" + Math.floor(100000 + Math.random() * 900000),
+    customerName: "عميل سوهاج",
+    customerPhone: "010" + Math.floor(10000000 + Math.random() * 89999999),
+    captainId: "cap_" + Math.floor(1000 + Math.random() * 9000),
+    captainName: "كابتن أحمد محمود",
+    captainPhone: "01001234567"
+  };
+  localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(localProfile));
+
+  let appConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  let userData = {
+    name: localProfile.customerName,
+    phone: localProfile.customerPhone,
+    walletBalance: 150,
+    walletHistory: [{ id: 1, title: "رصيد افتتاحي ترحيبي", amount: 150, type: "credit", date: nowStr() }],
+    usedPromos: []
+  };
+  let captainData = { name: localProfile.captainName, phone: localProfile.captainPhone, walletBalance: 50, earnings: 0, completed: 0, online: true };
+  let allRides = {};
+  let allUsers = {};
+  let allCaptains = {};
+
+  let selectedVehicleId = "car";
+  let selectedPayment = "wallet";
+  let customGpsPickup = null; // { id: 'gps', name: 'موقعي الحالي (GPS)', lat, lng }
+  let mapInstance = null;
+  let routeLayer = null;
+  let markersLayer = [];
+  let captainSoundEnabled = true;
+  let prevSearchingCount = 0;
+  let lastExecutedJS = "";
+
+  function toArray(val) {
+    if (!val) return [];
+    return Array.isArray(val) ? val : Object.values(val);
+  }
+
+  function nowStr() {
+    return new Date().toLocaleString("ar-EG", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => { t.style.display = "none"; }, 3400);
+  }
+
+  function setConnStatus(status, text) {
+    const pill = document.getElementById("firebaseStatusPill");
+    pill.className = "conn-pill " + status;
+    pill.textContent = text;
+  }
+
+  // ==================== 5. تنبيه صوتي (Web Audio API) ====================
+  let audioCtx = null;
+  function unlockAudio() {
+    if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  document.addEventListener("click", unlockAudio, { once: true });
+
+  function playCaptainChime() {
+    if (!captainSoundEnabled) return;
+    try {
+      unlockAudio();
+      if (!audioCtx) return;
+      [880, 1174].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.18, audioCtx.currentTime + i * 0.16);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.16 + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + i * 0.16);
+        osc.stop(audioCtx.currentTime + i * 0.16 + 0.32);
+      });
+    } catch (e) {}
+  }
+
+  function toggleCaptainSound() {
+    captainSoundEnabled = !captainSoundEnabled;
+    document.getElementById("soundToggleBtn").textContent = captainSoundEnabled ? "🔊 الصوت: مفعل" : "🔇 الصوت: مكتوم";
+  }
+
+  // ==================== 6. المزامنة المباشرة مع Firebase ====================
+  function initFirebaseListeners() {
+    if (!firebaseReady || !db) {
+      setConnStatus("error", "⚠️ وضع محلي");
+      applyConfigToUI();
+      return;
+    }
+
+    db.ref(".info/connected").on("value", (snap) => {
+      if (snap.val() === true) setConnStatus("online", "🟢 متصل مباشر");
+      else setConnStatus("", "⏳ جاري الاتصال...");
+    });
+
+    db.ref("config").on("value", (snap) => {
+      if (snap.exists()) {
+        appConfig = { ...DEFAULT_CONFIG, ...snap.val() };
+      } else {
+        db.ref("config").set(DEFAULT_CONFIG).catch(handleDbError);
+      }
+      applyConfigToUI();
+    }, handleDbError);
+
+    bindCustomerListener();
+    bindCaptainListener();
+
+    db.ref("rides").on("value", (snap) => {
+      allRides = snap.val() || {};
+      const searchingNow = Object.values(allRides).filter(r => r.status === "searching").length;
+      if (searchingNow > prevSearchingCount && !document.getElementById("captainView").classList.contains("hidden")) {
+        playCaptainChime();
+      }
+      prevSearchingCount = searchingNow;
+
+      renderActiveRide();
+      renderTrips();
+      renderCaptainPanel();
+      updateAdminCounters();
+      renderAdminRides();
+    }, handleDbError);
+
+    db.ref("users").on("value", (snap) => {
+      allUsers = snap.val() || {};
+      renderAdminWallets();
+      updateAdminCounters();
+    });
+
+    db.ref("captains").on("value", (snap) => {
+      allCaptains = snap.val() || {};
+      renderAdminWallets();
+      updateAdminCounters();
+    });
+  }
+
+  let currentUserRef = null;
+  function bindCustomerListener() {
+    if (currentUserRef) currentUserRef.off();
+    if (!db) return;
+    currentUserRef = db.ref("users/" + localProfile.customerId);
+    currentUserRef.on("value", (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        userData = {
+          name: val.name || localProfile.customerName,
+          phone: val.phone || localProfile.customerPhone,
+          walletBalance: Number(val.walletBalance ?? 0),
+          walletHistory: toArray(val.walletHistory),
+          usedPromos: toArray(val.usedPromos)
+        };
+      } else {
+        currentUserRef.set(userData).catch(handleDbError);
+      }
+      renderWallet();
+    }, handleDbError);
+  }
+
+  let currentCapRef = null;
+  function bindCaptainListener() {
+    if (currentCapRef) currentCapRef.off();
+    if (!db) return;
+    currentCapRef = db.ref("captains/" + localProfile.captainId);
+    currentCapRef.on("value", (snap) => {
+      if (snap.exists()) {
+        captainData = { walletBalance: 50, earnings: 0, completed: 0, online: true, ...snap.val() };
+      } else {
+        currentCapRef.set(captainData).catch(() => {});
+      }
+      renderCaptainPanel();
+    });
+  }
+
+  function handleDbError(err) {
+    console.error("Firebase DB Error:", err);
+    setConnStatus("error", "❌ خطأ صلاحيات Firebase");
+    if (err && err.code === "PERMISSION_DENIED") {
+      showToast("⚠️ صلاحيات Firebase مقفلة! تأكد من Rules.");
+    }
+  }
+
+  // ==================== 7. الهوية والحسابات ====================
+  function loadIdentityInputs() {
+    document.getElementById("custNameInput").value = localProfile.customerName;
+    document.getElementById("custPhoneInput").value = localProfile.customerPhone;
+    document.getElementById("custProfileLabel").textContent = `${localProfile.customerName} (${localProfile.customerPhone})`;
+    document.getElementById("capNameInput").value = localProfile.captainName;
+    document.getElementById("capPhoneInput").value = localProfile.captainPhone;
+  }
+
+  function saveCustomerIdentity() {
+    const name = document.getElementById("custNameInput").value.trim() || "عميل سوهاج";
+    const phone = document.getElementById("custPhoneInput").value.trim().replace(/\s+/g, "");
+    if (phone.length < 8) return showToast("أدخل رقم موبايل صحيح لربط محفظتك");
+
+    localProfile.customerId = "u_" + phone;
+    localProfile.customerName = name;
+    localProfile.customerPhone = phone;
+    localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(localProfile));
+    loadIdentityInputs();
+
+    if (db) {
+      db.ref("users/" + localProfile.customerId).once("value").then((snap) => {
+        if (!snap.exists()) {
+          userData = {
+            name, phone, walletBalance: 150,
+            walletHistory: [{ id: Date.now(), title: "رصيد افتتاحي ترحيبي", amount: 150, type: "credit", date: nowStr() }],
+            usedPromos: []
+          };
+          db.ref("users/" + localProfile.customerId).set(userData);
+        } else {
+          db.ref("users/" + localProfile.customerId).update({ name, phone });
+        }
+        bindCustomerListener();
+        showToast("✅ تم ربط حساب العميل ومحفظته سحابياً!");
+      });
+    }
+  }
+
+  function saveCaptainIdentity() {
+    const name = document.getElementById("capNameInput").value.trim() || "كابتن سوهاج";
+    const phone = document.getElementById("capPhoneInput").value.trim().replace(/\s+/g, "");
+    if (phone.length < 8) return showToast("أدخل رقم موبايل صحيح للكابتن");
+
+    localProfile.captainId = "cap_" + phone;
+    localProfile.captainName = name;
+    localProfile.captainPhone = phone;
+    localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(localProfile));
+
+    if (db) {
+      db.ref("captains/" + localProfile.captainId).once("value").then((snap) => {
+        if (!snap.exists()) {
+          captainData = { name, phone, walletBalance: 50, earnings: 0, completed: 0, online: true };
+          db.ref("captains/" + localProfile.captainId).set(captainData);
+        } else {
+          db.ref("captains/" + localProfile.captainId).update({ name, phone });
+        }
+        bindCaptainListener();
+        showToast("✅ تم حفظ وربط حساب الكابتن!");
+      });
+    }
+  }
+
+  // ==================== 8. تطبيق الكونفج وحقن الأكواد ====================
+  function applyConfigToUI() {
+    document.getElementById("appTitleDisplay").textContent = appConfig.appName;
+    document.getElementById("footerAppName").textContent = appConfig.appName;
+    document.getElementById("appVersionBadge").textContent = "v" + appConfig.version;
+    document.getElementById("secretVersionTrigger").textContent = "الإصدار " + appConfig.version;
+    document.getElementById("announcementText").textContent = appConfig.announcement;
+    document.getElementById("capCommissionRateLabel").textContent = (appConfig.commissionRate ?? 10) + "%";
+
+    if (appConfig.theme) {
+      document.documentElement.style.setProperty("--primary", appConfig.theme.primary || "#0f766e");
+      document.documentElement.style.setProperty("--primary-dark", appConfig.theme.primaryDark || "#115e59");
+      document.documentElement.style.setProperty("--accent", appConfig.theme.accent || "#f59e0b");
+    }
+
+    // حقن HTML و CSS و JS
+    document.getElementById("patch-custom-html").innerHTML = appConfig.customHTML || "";
+    document.getElementById("patch-dynamic-css").textContent = appConfig.customCSS || "";
+
+    const jsCode = (appConfig.customJS || "").trim();
+    if (jsCode && jsCode !== lastExecutedJS) {
+      lastExecutedJS = jsCode;
+      try { new Function(jsCode)(); } catch (err) { console.warn("Injected JS Error:", err); }
+    } else if (!jsCode) {
+      lastExecutedJS = "";
+    }
+
+    populateZones();
+    recalculateRide();
+    renderPatchHistory();
+    updateAdminCounters();
+  }
+
+  // ==================== 9. الخريطة والـ GPS ====================
+  function initMap() {
+    if (typeof L === "undefined") {
+      document.getElementById("mapFallback").style.display = "flex";
+      return;
+    }
+    try {
+      mapInstance = L.map("sohag-map").setView([26.5591, 31.6957], 11);
+      const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" });
+      tiles.on("tileerror", () => { document.getElementById("mapFallback").style.display = "flex"; });
+      tiles.addTo(mapInstance);
+    } catch (e) {
+      document.getElementById("mapFallback").style.display = "flex";
+    }
+  }
+
+  function detectCustomerGPS() {
+    if (!navigator.geolocation) return showToast("❌ جهازك لا يدعم تحديد الموقع");
+    showToast("📡 جاري تحديد موقعك في سوهاج...");
+    navigator.geolocation.getCurrentPosition((pos) => {
+      customGpsPickup = {
+        id: "gps_current",
+        name: "📍 موقعي الحالي (GPS)",
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        kmFromCenter: 1
+      };
+      populateZones();
+      document.getElementById("pickupSelect").value = "gps_current";
+      recalculateRide();
+      showToast("✅ تم تحديد موقعك على الخريطة!");
+    }, (err) => {
+      showToast("⚠️ تعذر الوصول للـ GPS — تأكد من تفعيل الموقع في الهاتف.");
+    }, { enableHighAccuracy: true, timeout: 8000 });
+  }
+
+  function populateZones() {
+    const pickup = document.getElementById("pickupSelect");
+    const dropoff = document.getElementById("dropoffSelect");
+    const oldP = pickup.value;
+    const oldD = dropoff.value;
+    const zones = appConfig.zones || [];
+
+    pickup.innerHTML = "";
+    if (customGpsPickup) {
+      pickup.innerHTML += `<option value="gps_current">${customGpsPickup.name}</option>`;
+    }
+    dropoff.innerHTML = "";
+    zones.forEach((z, idx) => {
+      pickup.innerHTML += `<option value="${z.id}">${z.name}</option>`;
+      dropoff.innerHTML += `<option value="${z.id}" ${idx === 4 ? "selected" : ""}>${z.name}</option>`;
+    });
+
+    if (oldP === "gps_current" && customGpsPickup) pickup.value = "gps_current";
+    else if (oldP && zones.some(z => z.id === oldP)) pickup.value = oldP;
+    if (oldD && zones.some(z => z.id === oldD)) dropoff.value = oldD;
+  }
+
+  function calcDistanceKm(z1, z2) {
+    if (!z1 || !z2 || z1.id === z2.id) return 2;
+    if (z1.lat && z2.lat) {
+      const R = 6371;
+      const dLat = (z2.lat - z1.lat) * Math.PI / 180;
+      const dLng = (z2.lng - z1.lng) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(z1.lat * Math.PI / 180) * Math.cos(z2.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+      return Math.max(2, Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.25));
+    }
+    return Math.max(3, Math.abs((z1.kmFromCenter || 5) - (z2.kmFromCenter || 10)));
+  }
+
+  function recalculateRide() {
+    const zones = appConfig.zones || [];
+    if (!zones.length) return;
+    const pId = document.getElementById("pickupSelect").value;
+    const dId = document.getElementById("dropoffSelect").value;
+    const z1 = (pId === "gps_current" && customGpsPickup) ? customGpsPickup : (zones.find(z => z.id === pId) || zones[0]);
+    const z2 = zones.find(z => z.id === dId) || zones[1] || zones[0];
+
+    const km = calcDistanceKm(z1, z2);
+    document.getElementById("distanceBadge").textContent = `المسافة التقريبية: ${km} كم`;
+    document.getElementById("mapStatusBadge").textContent = `${z1.name.split(" ")[0]} ← ${z2.name.split(" ")[0]}`;
+    document.getElementById("fallbackRouteText").textContent = `من: ${z1.name} — إلى: ${z2.name} (${km} كم)`;
+
+    updateMapMarkers(z1, z2, getMyActiveRide());
+
+    const grid = document.getElementById("vehiclesGrid");
+    grid.innerHTML = "";
+    (appConfig.vehicles || []).forEach(v => {
+      const fare = Math.round((appConfig.baseFare || 10) + (km * v.perKm));
+      const active = v.id === selectedVehicleId ? "selected" : "";
+      grid.innerHTML += `
+        <div class="vehicle-card ${active}" onclick="selectVehicle('${v.id}')">
+          <span class="vehicle-icon">${v.icon}</span>
+          <span class="vehicle-name">${v.name}</span>
+          <span class="vehicle-price">${fare} ج.م</span>
+        </div>
+      `;
+    });
+  }
+
+  function updateMapMarkers(z1, z2, activeRide) {
+    if (!mapInstance || !z1?.lat || !z2?.lat) return;
+    markersLayer.forEach(m => mapInstance.removeLayer(m));
+    markersLayer = [];
+    if (routeLayer) mapInstance.removeLayer(routeLayer);
+
+    const pts = [[z1.lat, z1.lng], [z2.lat, z2.lng]];
+    markersLayer.push(L.marker([z1.lat, z1.lng]).addTo(mapInstance).bindPopup("الانطلاق: " + z1.name));
+    markersLayer.push(L.marker([z2.lat, z2.lng]).addTo(mapInstance).bindPopup("الوصول: " + z2.name));
+
+    if (activeRide && activeRide.captainLat && activeRide.captainLng) {
+      const capMarker = L.circleMarker([activeRide.captainLat, activeRide.captainLng], {
+        radius: 9, color: "#f59e0b", fillColor: "#f59e0b", fillOpacity: 0.9
+      }).addTo(mapInstance).bindPopup("🚕 موقع الكابتن الحالي");
+      markersLayer.push(capMarker);
+      pts.push([activeRide.captainLat, activeRide.captainLng]);
+    }
+
+    routeLayer = L.polyline([[z1.lat, z1.lng], [z2.lat, z2.lng]], {
+      color: appConfig.theme?.primary || "#0f766e", weight: 4, dashArray: "6,6"
+    }).addTo(mapInstance);
+    mapInstance.fitBounds(pts, { padding: [35, 35] });
+  }
+
+  function selectVehicle(id) { selectedVehicleId = id; recalculateRide(); }
+
+  function selectPayment(method) {
+    selectedPayment = method;
+    document.getElementById("payWalletOpt").classList.toggle("selected", method === "wallet");
+    document.getElementById("payCashOpt").classList.toggle("selected", method === "cash");
+  }
+
+  // ==================== 10. طلب الرحلة وتتبعها ====================
+  function getMyActiveRide() {
+    return Object.values(allRides).find(r =>
+      r.customerId === localProfile.customerId && r.status !== "completed" && r.status !== "cancelled"
+    ) || null;
+  }
+
+  function requestRide() {
+    if (getMyActiveRide()) return showToast("⚠️ لديك رحلة نشطة بالفعل!");
+
+    const pId = document.getElementById("pickupSelect").value;
+    const dId = document.getElementById("dropoffSelect").value;
+    const z1 = (pId === "gps_current" && customGpsPickup) ? customGpsPickup : appConfig.zones.find(z => z.id === pId);
+    const z2 = appConfig.zones.find(z => z.id === dId);
+    const km = calcDistanceKm(z1, z2);
+    const vehicle = appConfig.vehicles.find(v => v.id === selectedVehicleId);
+    const fare = Math.round(appConfig.baseFare + (km * vehicle.perKm));
+
+    if (selectedPayment === "wallet" && userData.walletBalance < fare) {
+      showToast("❌ رصيد المحفظة غير كافٍ! اشحن المحفظة أو اختر الدفع كاش.");
+      switchCustomerTab("wallet", document.querySelectorAll("#customerNav .nav-item")[1]);
+      return;
+    }
+
+    const rideId = "SHG-" + Date.now().toString().slice(-6);
+    const ride = {
+      id: rideId,
+      customerId: localProfile.customerId,
+      customerName: localProfile.customerName,
+      customerPhone: localProfile.customerPhone,
+      pickup: z1.name,
+      dropoff: z2.name,
+      pickupLat: z1.lat, pickupLng: z1.lng,
+      dropoffLat: z2.lat, dropoffLng: z2.lng,
+      note: document.getElementById("addressNote").value.trim(),
+      km,
+      vehicleName: vehicle.name,
+      vehicleIcon: vehicle.icon,
+      fare,
+      payment: selectedPayment,
+      status: "searching",
+      createdAt: nowStr(),
+      timestamp: Date.now()
+    };
+
+    if (!db) return showToast("❌ لا يوجد اتصال بقاعدة البيانات");
+    db.ref("rides/" + rideId).set(ride)
+      .then(() => showToast("✅ تم إرسال طلبك للكباتن في سوهاج!"))
+      .catch(handleDbError);
+  }
+
+  function renderActiveRide() {
+    const card = document.getElementById("activeRideCard");
+    const r = getMyActiveRide();
+    if (!r) { card.classList.add("hidden"); return; }
+    card.classList.remove("hidden");
+
+    const statusLabels = {
+      searching: "جاري البحث عن كابتن...",
+      accepted: "الكابتن في الطريق إليك",
+      arrived: "الكابتن وصل لنقطة الانطلاق",
+      started: "الرحلة جارية الآن"
+    };
+    document.getElementById("activeRideStatusText").textContent = statusLabels[r.status] || r.status;
+
+    const order = ["searching", "accepted", "arrived", "started", "completed"];
+    const curIdx = order.indexOf(r.status);
+    document.querySelectorAll("#rideStepper .step").forEach((el, idx) => el.classList.toggle("done", idx <= curIdx));
+
+    document.getElementById("activeRideDetails").innerHTML = `
+      <div><strong>رقم الرحلة:</strong> ${r.id} (${r.vehicleIcon} ${r.vehicleName})</div>
+      <div><strong>المسار:</strong> ${r.pickup} ← ${r.dropoff}</div>
+      <div><strong>الأجرة:</strong> ${r.fare} ج.م (${r.payment === "wallet" ? "دفع بالمحفظة" : "كاش"})</div>
+      ${r.captainName ? `<div><strong>الكابتن:</strong> ${r.captainName} (${r.captainPhone || ""})</div>` : ""}
+    `;
+
+    const actions = document.getElementById("activeRideActions");
+    actions.innerHTML = "";
+    if (r.captainPhone) {
+      const cleanPhone = r.captainPhone.replace(/\D/g, "");
+      const waPhone = cleanPhone.startsWith("0") ? "2" + cleanPhone : cleanPhone;
+      actions.innerHTML += `<a class="btn btn-primary btn-sm" href="tel:${cleanPhone}">📞 اتصال بالكابتن</a>`;
+      actions.innerHTML += `<a class="btn btn-whatsapp btn-sm" target="_blank" href="https://wa.me/${waPhone}">💬 واتساب</a>`;
+    }
+    if (r.status !== "started") {
+      actions.innerHTML += `<button class="btn btn-danger btn-sm" onclick="cancelActiveRide()">إلغاء الرحلة</button>`;
+    }
+
+    if (r.pickupLat && r.dropoffLat) {
+      updateMapMarkers({ name: r.pickup, lat: r.pickupLat, lng: r.pickupLng }, { name: r.dropoff, lat: r.dropoffLat, lng: r.dropoffLng }, r);
+    }
+  }
+
+  function cancelActiveRide() {
+    const r = getMyActiveRide();
+    if (!r || !db) return;
+    db.ref("rides/" + r.id).update({ status: "cancelled" }).then(() => showToast("تم إلغاء الرحلة."));
+  }
+
+  // ==================== 11. المحفظة ====================
+  function renderWallet() {
+    document.getElementById("walletBalanceDisplay").textContent = Number(userData.walletBalance || 0).toFixed(2) + " ج.م";
+    document.getElementById("miniWalletBadge").textContent = "رصيدك: " + Number(userData.walletBalance || 0).toFixed(0) + " ج.م";
+
+    const list = document.getElementById("walletHistoryList");
+    const hist = [...toArray(userData.walletHistory)].reverse();
+    if (!hist.length) {
+      list.innerHTML = `<p style="color:var(--muted)">لا توجد معاملات حتى الآن.</p>`;
+      return;
+    }
+    list.innerHTML = hist.map(tx => `
+      <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong style="font-size:0.88rem;">${tx.title}</strong>
+          <div style="font-size:0.75rem; color:var(--muted);">${tx.date}</div>
+        </div>
+        <span class="badge ${tx.type === "credit" ? "badge-ok" : "badge-danger"}">
+          ${tx.type === "credit" ? "+" : "-"}${tx.amount} ج.م
+        </span>
+      </div>
+    `).join("");
+  }
+
+  function rechargeWallet() {
+    const amount = Number(document.getElementById("topupAmount").value);
+    const method = document.getElementById("topupMethod").value;
+    if (!amount || amount < 10) return showToast("أدخل مبلغاً لا يقل عن 10 ج.م");
+
+    const newBalance = Number(userData.walletBalance || 0) + amount;
+    const newHist = [...toArray(userData.walletHistory), {
+      id: Date.now(), title: `شحن رصيد عبر ${method}`, amount, type: "credit", date: nowStr()
+    }];
+
+    db.ref("users/" + localProfile.customerId).update({ walletBalance: newBalance, walletHistory: newHist })
+      .then(() => showToast(`✅ تم شحن ${amount} ج.م في محفظتك!`));
+  }
+
+  function applyPromoCode() {
+    const code = document.getElementById("promoInput").value.trim().toUpperCase();
+    if (code !== "SOHAG50") return showToast("❌ كود البرومو غير صحيح");
+    const used = toArray(userData.usedPromos);
+    if (used.includes(code)) return showToast("⚠️ تم استخدام هذا الكود مسبقاً");
+
+    const newBalance = Number(userData.walletBalance || 0) + 50;
+    const newHist = [...toArray(userData.walletHistory), {
+      id: Date.now(), title: "هدية كود برومو (SOHAG50)", amount: 50, type: "credit", date: nowStr()
+    }];
+
+    db.ref("users/" + localProfile.customerId).update({
+      walletBalance: newBalance, walletHistory: newHist, usedPromos: [...used, code]
+    }).then(() => showToast("🎉 مبروك! تمت إضافة 50 ج.م لمحفظتك."));
+  }
+
+  function renderTrips() {
+    const list = document.getElementById("customerTripsList");
+    const myRides = Object.values(allRides)
+      .filter(r => r.customerId === localProfile.customerId && (r.status === "completed" || r.status === "cancelled"))
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    if (!myRides.length) {
+      list.innerHTML = `<p style="color:var(--muted);">لم تقم بأي رحلات مكتملة أو ملغاة بعد.</p>`;
+      return;
+    }
+    list.innerHTML = myRides.map(t => `
+      <div class="list-item">
+        <div style="display:flex; justify-content:space-between;">
+          <strong>${t.vehicleIcon} ${t.id} — ${t.fare} ج.م</strong>
+          <span class="badge ${t.status === "completed" ? "badge-ok" : "badge-danger"}">
+            ${t.status === "completed" ? "مكتملة" : "ملغاة"}
+          </span>
+        </div>
+        <div style="font-size:0.84rem; margin-top:4px;">من: ${t.pickup} ← إلى: ${t.dropoff}</div>
+        <small style="color:var(--muted);">${t.createdAt} • ${t.payment === "wallet" ? "المحفظة" : "كاش"}</small>
+      </div>
+    `).join("");
+  }
+
+  // ==================== 12. واجهة الكابتن والعمولة ====================
+  function toggleCaptainOnline() {
+    db.ref("captains/" + localProfile.captainId).update({ online: !captainData.online });
+  }
+
+  function renderCaptainPanel() {
+    const badge = document.getElementById("captainStatusBadge");
+    badge.textContent = captainData.online ? "متصل" : "غير متصل";
+    badge.className = "badge " + (captainData.online ? "badge-ok" : "badge-danger");
+
+    document.getElementById("capWalletDisplay").textContent = Number(captainData.walletBalance ?? 0).toFixed(1) + " ج.م";
+    document.getElementById("capEarningsDisplay").textContent = Number(captainData.earnings || 0).toFixed(1) + " ج.م";
+    document.getElementById("capCompletedCount").textContent = captainData.completed || 0;
+
+    const searchingRides = Object.values(allRides)
+      .filter(r => r.status === "searching")
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    document.getElementById("liveRequestsCount").textContent = searchingRides.length + " طلب";
+
+    const reqList = document.getElementById("captainRequestsList");
+    const minCap = Number(appConfig.minCaptainWallet ?? 0);
+
+    if (!captainData.online) {
+      reqList.innerHTML = `<p style="color:var(--muted);">أنت الآن غير متصل. قم بتفعيل الاتصال لاستقبال الطلبات.</p>`;
+    } else if (Number(captainData.walletBalance ?? 0) < minCap) {
+      reqList.innerHTML = `<p style="color:var(--danger); font-weight:700;">⚠️ رصيد محفظة الكابتن (${captainData.walletBalance} ج.م) أقل من الحد الأدنى (${minCap} ج.م). تواصل مع الإدارة للشحن.</p>`;
+    } else if (!searchingRides.length) {
+      reqList.innerHTML = `<p style="color:var(--muted);">في انتظار طلبات جديدة من عملاء سوهاج...</p>`;
+    } else {
+      reqList.innerHTML = searchingRides.map(req => `
+        <div class="list-item">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>${req.vehicleIcon} ${req.vehicleName} • ${req.fare} ج.م</strong>
+            <span class="badge badge-info">${req.km} كم</span>
+          </div>
+          <div style="font-size:0.84rem; margin:6px 0;">
+            <div>👤 العميل: ${req.customerName || "عميل"} (${req.customerPhone || ""})</div>
+            <div>🟢 من: ${req.pickup}</div>
+            <div>🔴 إلى: ${req.dropoff}</div>
+            ${req.note ? `<div style="color:var(--primary-dark);">📝 ملاحظة: ${req.note}</div>` : ""}
+            <small style="color:var(--muted);">الدفع: ${req.payment === "wallet" ? "محفظة العميل" : "كاش"}</small>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="captainAccept('${req.id}')">قبول الرحلة</button>
+        </div>
+      `).join("");
+    }
+
+    const myCapRide = Object.values(allRides).find(r =>
+      r.captainId === localProfile.captainId && r.status !== "completed" && r.status !== "cancelled"
+    );
+
+    const activePanel = document.getElementById("captainActivePanel");
+    if (!myCapRide) {
+      activePanel.innerHTML = `<p style="color:var(--muted); font-size:0.9rem;">لا توجد رحلة قيد التنفيذ حالياً.</p>`;
+    } else {
+      let actionBtn = "";
+      if (myCapRide.status === "accepted") actionBtn = `<button class="btn btn-primary" onclick="captainNextStep('${myCapRide.id}', 'arrived')">📍 وصلت لنقطة الانطلاق</button>`;
+      else if (myCapRide.status === "arrived") actionBtn = `<button class="btn btn-accent" onclick="captainNextStep('${myCapRide.id}', 'started')">🚀 بدء الرحلة الآن</button>`;
+      else if (myCapRide.status === "started") actionBtn = `<button class="btn btn-success" onclick="captainNextStep('${myCapRide.id}', 'completed')">✅ إنهاء الرحلة وتحصيل ${myCapRide.fare} ج.م</button>`;
+
+      const cleanCust = (myCapRide.customerPhone || "").replace(/\D/g, "");
+      const waCust = cleanCust.startsWith("0") ? "2" + cleanCust : cleanCust;
+
+      activePanel.innerHTML = `
+        <div class="list-item" style="background:#f0fdfa;">
+          <strong>رحلة رقم: ${myCapRide.id}</strong>
+          <div style="font-size:0.86rem; margin:6px 0;">
+            <div>العميل: ${myCapRide.customerName} (${myCapRide.customerPhone})</div>
+            <div>من: ${myCapRide.pickup}</div>
+            <div>إلى: ${myCapRide.dropoff}</div>
+            <div>الأجرة: <strong>${myCapRide.fare} ج.م</strong> (${myCapRide.payment === "wallet" ? "محفظة" : "كاش"})</div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+            ${cleanCust ? `<a class="btn btn-primary btn-sm" href="tel:${cleanCust}">📞 اتصال</a>` : ""}
+            ${cleanCust ? `<a class="btn btn-whatsapp btn-sm" target="_blank" href="https://wa.me/${waCust}">💬 واتساب</a>` : ""}
+          </div>
+          ${actionBtn}
+        </div>
+      `;
+    }
+  }
+
+  function captainAccept(rideId) {
+    if (!db) return;
+    const minCap = Number(appConfig.minCaptainWallet ?? 0);
+    if (Number(captainData.walletBalance ?? 0) < minCap) {
+      return showToast("⚠️ رصيد محفظتك غير كافٍ لتغطية العمولة");
+    }
+
+    db.ref("rides/" + rideId).transaction((current) => {
+      if (current && current.status === "searching") {
+        current.status = "accepted";
+        current.captainId = localProfile.captainId;
+        current.captainName = localProfile.captainName;
+        current.captainPhone = localProfile.captainPhone;
+        return current;
+      }
+      return;
+    }, (err, committed) => {
+      if (err) return handleDbError(err);
+      if (committed) {
+        shareCaptainGPS(true);
+        showToast("✅ تم قبول الرحلة بنجاح!");
+      } else showToast("⚠️ سبقك كابتن آخر لقبول هذه الرحلة.");
+    });
+  }
+
+  function shareCaptainGPS(silent = false) {
+    const myCapRide = Object.values(allRides).find(r =>
+      r.captainId === localProfile.captainId && r.status !== "completed" && r.status !== "cancelled"
+    );
+    if (!myCapRide) {
+      if (!silent) showToast("لا توجد رحلة نشطة لبث موقعك عليها");
+      return;
+    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      db.ref("rides/" + myCapRide.id).update({
+        captainLat: pos.coords.latitude,
+        captainLng: pos.coords.longitude
+      });
+      if (!silent) showToast("📍 تم إرسال موقعك الحالي للعميل");
+    }, () => {
+      if (!silent) showToast("⚠️ تعذر قراءة الـ GPS");
+    });
+  }
+
+  function captainNextStep(rideId, nextStatus) {
+    const ride = allRides[rideId];
+    if (!ride || !db) return;
+
+    const updates = { status: nextStatus };
+    const commissionPct = Number(appConfig.commissionRate ?? 10);
+    const commissionAmt = Math.round((Number(ride.fare) * commissionPct) / 100 * 100) / 100;
+    if (nextStatus === "completed") updates.commission = commissionAmt;
+
+    db.ref("rides/" + rideId).update(updates).then(() => {
+      if (nextStatus === "completed") {
+        const netEarn = Number(ride.fare) - commissionAmt;
+        let newCapWallet = Number(captainData.walletBalance ?? 0);
+
+        // إذا دفع العميل كاش: نخصم العمولة من محفظة الكابتن
+        // إذا دفع العميل بالمحفظة: نخصم من العميل ونضيف الصافي لمحفظة الكابتن
+        if (ride.payment === "wallet") {
+          newCapWallet += netEarn;
+          if (ride.customerId) {
+            const uRef = db.ref("users/" + ride.customerId);
+            uRef.once("value").then((snap) => {
+              if (snap.exists()) {
+                const u = snap.val();
+                const newBal = Math.max(0, Number(u.walletBalance || 0) - Number(ride.fare));
+                const hist = toArray(u.walletHistory);
+                hist.push({ id: Date.now(), title: `دفع أجرة رحلة ${ride.id}`, amount: ride.fare, type: "debit", date: nowStr() });
+                uRef.update({ walletBalance: newBal, walletHistory: hist });
+              }
+            });
+          }
+        } else {
+          newCapWallet -= commissionAmt;
+        }
+
+        db.ref("captains/" + localProfile.captainId).update({
+          walletBalance: Math.round(newCapWallet * 100) / 100,
+          earnings: Math.round((Number(captainData.earnings || 0) + netEarn) * 100) / 100,
+          completed: Number(captainData.completed || 0) + 1
+        });
+        showToast(`🎉 انتهت الرحلة! الصافي: ${netEarn} ج.م (عمولة التطبيق: ${commissionAmt} ج.م)`);
+      }
+    });
+  }
+
+  // ==================== 13. التنقل ====================
+  function switchRole(role) {
+    const isCust = role === "customer";
+    document.getElementById("customerView").classList.toggle("hidden", !isCust);
+    document.getElementById("customerNav").classList.toggle("hidden", !isCust);
+    document.getElementById("captainView").classList.toggle("hidden", isCust);
+    document.getElementById("switchCustomerBtn").classList.toggle("active", isCust);
+    document.getElementById("switchCaptainBtn").classList.toggle("active", !isCust);
+    if (isCust && mapInstance) setTimeout(() => mapInstance.invalidateSize(), 200);
+    renderCaptainPanel();
+  }
+
+  function switchCustomerTab(tab, btn) {
+    document.getElementById("custTabBook").classList.toggle("hidden", tab !== "book");
+    document.getElementById("custTabWallet").classList.toggle("hidden", tab !== "wallet");
+    document.getElementById("custTabTrips").classList.toggle("hidden", tab !== "trips");
+    document.querySelectorAll("#customerNav .nav-item").forEach(el => el.classList.remove("active"));
+    if (btn) btn.classList.add("active");
+    if (tab === "book" && mapInstance) setTimeout(() => mapInstance.invalidateSize(), 200);
+  }
+
+  // ==================== 14. الدخول السري للأدمن ====================
+  let secretTapCount = 0;
+  let secretTapTimer = null;
+  function registerSecretTap() {
+    secretTapCount++;
+    clearTimeout(secretTapTimer);
+    secretTapTimer = setTimeout(() => { secretTapCount = 0; }, 2200);
+    if (secretTapCount >= 5) { secretTapCount = 0; openSecretAdminAuth(); }
+  }
+  document.getElementById("secretBrandTrigger").addEventListener("click", registerSecretTap);
+  document.getElementById("secretVersionTrigger").addEventListener("click", registerSecretTap);
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === "A" || e.key === "a")) {
+      e.preventDefault();
+      openSecretAdminAuth();
+    }
+  });
+
+  function openSecretAdminAuth() {
+    document.getElementById("adminSecretInput").value = "";
+    document.getElementById("adminAuthModal").classList.add("open");
+    setTimeout(() => document.getElementById("adminSecretInput").focus(), 100);
+  }
+
+  function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+  function verifyAdminLogin() {
+    const val = document.getElementById("adminSecretInput").value.trim();
+    if (val === (appConfig.adminPin || "SOHAG2026")) {
+      closeModal("adminAuthModal");
+      openAdminDashboard();
+    } else showToast("❌ الرمز السري غير صحيح");
+  }
+
+  // ==================== 15. لوحة الأدمن + أداة حقن الأكواد ====================
+  function updateAdminCounters() {
+    const ridesList = Object.values(allRides);
+    const totalComm = ridesList.reduce((acc, r) => acc + Number(r.commission || 0), 0);
+    document.getElementById("admTotalTrips").textContent = ridesList.length;
+    document.getElementById("admUsersCount").textContent = Object.keys(allUsers).length;
+    document.getElementById("admCaptainsCount").textContent = Object.keys(allCaptains).length;
+    document.getElementById("admTotalCommission").textContent = totalComm.toFixed(1) + " ج.م";
+  }
+
+  function openAdminDashboard() {
+    updateAdminCounters();
+    document.getElementById("admAnnouncementInput").value = appConfig.announcement;
+    document.getElementById("admBaseFare").value = appConfig.baseFare;
+    document.getElementById("admRateTuktuk").value = appConfig.vehicles[0]?.perKm || 3.5;
+    document.getElementById("admRateCar").value = appConfig.vehicles[1]?.perKm || 6;
+    document.getElementById("admRateVan").value = appConfig.vehicles[2]?.perKm || 8.5;
+    document.getElementById("admCommissionPct").value = appConfig.commissionRate ?? 10;
+    document.getElementById("admMinCapWallet").value = appConfig.minCaptainWallet ?? 0;
+
+    // تعبئة محررات الحقن بالإعدادات الحالية
+    document.getElementById("injHtmlInput").value = appConfig.customHTML || "";
+    document.getElementById("injCssInput").value = appConfig.customCSS || "";
+    document.getElementById("injJsInput").value = appConfig.customJS || "";
+    if (!document.getElementById("injJsonInput").value.trim()) exportCurrentConfigAsPatch();
+
+    renderAdminWallets();
+    renderAdminRides();
+    renderPatchHistory();
+    document.getElementById("adminDashboardModal").classList.add("open");
+  }
+
+  function switchAdminTab(tab, btn) {
+    ["overview", "pricing", "wallets", "rides", "patch"].forEach(t => {
+      const cap = t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById("admTab" + cap).classList.toggle("hidden", t !== tab);
+    });
+    document.querySelectorAll(".admin-tabs .btn").forEach(b => {
+      b.classList.remove("btn-primary");
+      if (!b.classList.contains("btn-accent")) b.classList.add("btn-outline");
+    });
+    btn.classList.remove("btn-outline");
+    btn.classList.add("btn-primary");
+  }
+
+  function saveAnnouncement() {
+    const announcement = document.getElementById("admAnnouncementInput").value;
+    db.ref("config").update({ announcement }).then(() => showToast("✅ تم نشر الإعلان لكل الأجهزة!"));
+  }
+
+  function saveAdminPin() {
+    const pin = document.getElementById("admNewPinInput").value.trim();
+    if (pin.length < 4) return showToast("الرمز يجب أن يكون 4 أحرف على الأقل");
+    db.ref("config").update({ adminPin: pin }).then(() => {
+      document.getElementById("admNewPinInput").value = "";
+      showToast("✅ تم تحديث الرمز السري بنجاح");
+    });
+  }
+
+  function saveAdminPricing() {
+    const vehicles = JSON.parse(JSON.stringify(appConfig.vehicles));
+    vehicles[0].perKm = Number(document.getElementById("admRateTuktuk").value) || 3.5;
+    vehicles[1].perKm = Number(document.getElementById("admRateCar").value) || 6;
+    vehicles[2].perKm = Number(document.getElementById("admRateVan").value) || 8.5;
+
+    db.ref("config").update({
+      baseFare: Number(document.getElementById("admBaseFare").value) || 10,
+      commissionRate: Number(document.getElementById("admCommissionPct").value) ?? 10,
+      minCaptainWallet: Number(document.getElementById("admMinCapWallet").value) ?? 0,
+      vehicles
+    }).then(() => showToast("✅ تم نشر التسعيرة ونسبة العمولة"));
+  }
+
+  function addSohagZone() {
+    const name = document.getElementById("newZoneName").value.trim();
+    const km = Number(document.getElementById("newZoneKm").value) || 5;
+    if (!name) return showToast("أدخل اسم المنطقة");
+    const zones = [...(appConfig.zones || []), {
+      id: "zone_" + Date.now(), name, kmFromCenter: km,
+      lat: 26.5591 + (Math.random() - 0.5) * 0.08,
+      lng: 31.6957 + (Math.random() - 0.5) * 0.08
+    }];
+    document.getElementById("newZoneName").value = "";
+    db.ref("config").update({ zones }).then(() => showToast("✅ تمت إضافة المنطقة ونشرها"));
+  }
+
+  function renderAdminWallets() {
+    const uBox = document.getElementById("admUsersWalletList");
+    const uEntries = Object.entries(allUsers);
+    uBox.innerHTML = uEntries.length ? uEntries.map(([uid, u]) => `
+      <div class="list-item" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+        <div><strong>${u.name || "عميل"} (${u.phone || uid})</strong> — <span style="color:var(--primary-dark);">${Number(u.walletBalance || 0).toFixed(1)} ج.م</span></div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-success btn-sm" onclick="adminAdjustUserWallet('${uid}', 50)">+50</button>
+          <button class="btn btn-danger btn-sm" onclick="adminAdjustUserWallet('${uid}', -20)">-20</button>
+        </div>
+      </div>
+    `).join("") : `<small style="color:var(--muted);">لا يوجد عملاء بعد.</small>`;
+
+    const cBox = document.getElementById("admCaptainsWalletList");
+    const cEntries = Object.entries(allCaptains);
+    cBox.innerHTML = cEntries.length ? cEntries.map(([cid, c]) => `
+      <div class="list-item" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
+        <div><strong>${c.name || "كابتن"} (${c.phone || cid})</strong> — الرصيد: <span style="color:var(--primary-dark);">${Number(c.walletBalance || 0).toFixed(1)} ج.م</span></div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-success btn-sm" onclick="adminAdjustCaptainWallet('${cid}', 100)">+100 ج.م</button>
+          <button class="btn btn-danger btn-sm" onclick="adminAdjustCaptainWallet('${cid}', -50)">-50 ج.م</button>
+        </div>
+      </div>
+    `).join("") : `<small style="color:var(--muted);">لا يوجد كباتن بعد.</small>`;
+  }
+
+  function adminAdjustUserWallet(uid, delta) {
+    const u = allUsers[uid];
+    if (!u || !db) return;
+    const newBal = Math.max(0, Number(u.walletBalance || 0) + delta);
+    const hist = toArray(u.walletHistory);
+    hist.push({ id: Date.now(), title: delta > 0 ? "إيداع إداري" : "خصم إداري", amount: Math.abs(delta), type: delta > 0 ? "credit" : "debit", date: nowStr() });
+    db.ref("users/" + uid).update({ walletBalance: newBal, walletHistory: hist }).then(() => showToast("✅ تم تعديل رصيد العميل"));
+  }
+
+  function adminAdjustCaptainWallet(cid, delta) {
+    const c = allCaptains[cid];
+    if (!c || !db) return;
+    const newBal = Number(c.walletBalance || 0) + delta;
+    db.ref("captains/" + cid).update({ walletBalance: newBal }).then(() => showToast("✅ تم تعديل محفظة الكابتن"));
+  }
+
+  function renderAdminRides() {
+    const box = document.getElementById("admRidesList");
+    const list = Object.values(allRides).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    box.innerHTML = list.length ? list.map(r => `
+      <div class="list-item" style="font-size:0.82rem;">
+        <div style="display:flex; justify-content:space-between;">
+          <strong>${r.vehicleIcon} ${r.id} — ${r.fare} ج.م</strong>
+          <span class="badge badge-info">${r.status}</span>
+        </div>
+        <div>العميل: ${r.customerName} (${r.customerPhone}) ${r.captainName ? `| الكابتن: ${r.captainName}` : ""}</div>
+        <div>المسار: ${r.pickup} ← ${r.dropoff}</div>
+      </div>
+    `).join("") : `<p style="color:var(--muted);">لا توجد رحلات مسجلة.</p>`;
+  }
+
+  // ==================== 16. أداة الباتشات وحقن الأكواد ====================
+  function switchInjectEditor(type, btn) {
+    ["json", "html", "css", "js"].forEach(t => {
+      const cap = t.charAt(0).toUpperCase() + t.slice(1);
+      document.getElementById("inj" + cap + "Input").classList.toggle("hidden", t !== type);
+    });
+    document.querySelectorAll(".inject-tabs .btn").forEach(b => {
+      b.classList.remove("btn-primary");
+      b.classList.add("btn-outline");
+    });
+    btn.classList.remove("btn-outline");
+    btn.classList.add("btn-primary");
+  }
+
+  function loadSampleInject(preset) {
+    if (preset === "banner") {
+      document.getElementById("injJsonInput").value = JSON.stringify({ patchNote: "حقن بانر عروض الصيف", version: "2.1.0" }, null, 2);
+      document.getElementById("injHtmlInput").value = `<div class="sohag-promo-banner">🔥 عرض خاص لأهل سوهاج: مشوارك داخل المدينة بخصم فوري!</div>`;
+      document.getElementById("injCssInput").value = `.sohag-promo-banner {\n  background: linear-gradient(90deg, #f59e0b, #ea580c);\n  color: #fff;\n  text-align: center;\n  padding: 10px;\n  border-radius: 12px;\n  margin-top: 10px;\n  font-weight: 800;\n}`;
+      document.getElementById("injJsInput").value = "";
+    } else if (preset === "discount") {
+      document.getElementById("injJsonInput").value = JSON.stringify({
+        patchNote: "تخفيض فتحة العداد وعمولة 8%",
+        version: "2.2.0",
+        baseFare: 8,
+        commissionRate: 8,
+        announcement: "🎉 فتحة العداد الآن 8 ج.م فقط في كل مراكز سوهاج!"
+      }, null, 2);
+    } else if (preset === "js_feature") {
+      document.getElementById("injJsonInput").value = JSON.stringify({ patchNote: "إضافة زر تواصل سريع للدعم الفني", version: "2.3.0" }, null, 2);
+      document.getElementById("injHtmlInput").value = `<button id="supportFloatBtn" class="support-float-btn">💬 دعم سوهاج</button>`;
+      document.getElementById("injCssInput").value = `.support-float-btn {\n  position: fixed;\n  bottom: 85px;\n  left: 16px;\n  z-index: 90;\n  background: #25D366;\n  color: #fff;\n  border: none;\n  padding: 10px 16px;\n  border-radius: 999px;\n  font-weight: 800;\n  box-shadow: 0 6px 18px rgba(0,0,0,0.2);\n  cursor: pointer;\n}`;
+      document.getElementById("injJsInput").value = `const b = document.getElementById('supportFloatBtn');\nif (b) b.onclick = () => showToast('📞 رقم دعم توصيلة سوهاج: 0100XXXXXXX');`;
+    }
+    showToast("تم تحميل القالب في المحررات — جرب المعاينة أو النشر!");
+  }
+
+  function exportCurrentConfigAsPatch() {
+    const exported = {
+      patchNote: "الإعدادات الحالية",
+      appName: appConfig.appName,
+      version: appConfig.version,
+      announcement: appConfig.announcement,
+      baseFare: appConfig.baseFare,
+      commissionRate: appConfig.commissionRate,
+      theme: appConfig.theme
+    };
+    document.getElementById("injJsonInput").value = JSON.stringify(exported, null, 2);
+  }
+
+  function buildPatchedConfig() {
+    const jsonRaw = document.getElementById("injJsonInput").value.trim();
+    const patch = jsonRaw ? JSON.parse(jsonRaw) : {};
+    const updated = JSON.parse(JSON.stringify(appConfig));
+
+    if (patch.appName) updated.appName = patch.appName;
+    if (patch.version) updated.version = patch.version;
+    if (patch.announcement) updated.announcement = patch.announcement;
+    if (typeof patch.baseFare === "number") updated.baseFare = patch.baseFare;
+    if (typeof patch.commissionRate === "number") updated.commissionRate = patch.commissionRate;
+    if (patch.theme) updated.theme = { ...updated.theme, ...patch.theme };
+    if (Array.isArray(patch.vehicles)) updated.vehicles = patch.vehicles;
+    if (Array.isArray(patch.addZones)) {
+      patch.addZones.forEach(z => { if (!updated.zones.some(ex => ex.id === z.id)) updated.zones.push(z); });
+    }
+
+    updated.customHTML = document.getElementById("injHtmlInput").value;
+    updated.customCSS = document.getElementById("injCssInput").value;
+    updated.customJS = document.getElementById("injJsInput").value;
+
+    return { updated, note: patch.patchNote || "تحديث وحقن كود" };
+  }
+
+  function previewInjectedPatchLocally() {
+    try {
+      const { updated } = buildPatchedConfig();
+      appConfig = updated;
+      lastExecutedJS = "";
+      applyConfigToUI();
+      showToast("👁️ تم تطبيق المعاينة على جهازك فقط (لم تُنشر بعد)");
+    } catch (err) {
+      alert("خطأ في كود JSON:\n" + err.message);
+    }
+  }
+
+  function publishInjectedPatch() {
+    try {
+      const { updated, note } = buildPatchedConfig();
+      const hist = toArray(updated.patchHistory);
+      hist.unshift({ version: updated.version, note, date: nowStr() });
+      updated.patchHistory = hist.slice(0, 20);
+
+      db.ref("config").set(updated)
+        .then(() => showToast("🚀 تم نشر الباتش والأكواد المحقونة لجميع الأجهزة!"))
+        .catch(handleDbError);
+    } catch (err) {
+      alert("خطأ في كود JSON:\n" + err.message);
+    }
+  }
+
+  function clearInjectedCodes() {
+    document.getElementById("injHtmlInput").value = "";
+    document.getElementById("injCssInput").value = "";
+    document.getElementById("injJsInput").value = "";
+    db.ref("config").update({ customHTML: "", customCSS: "", customJS: "" })
+      .then(() => showToast("🧹 تم مسح جميع الأكواد المحقونة من كل الأجهزة"));
+  }
+
+  function renderPatchHistory() {
+    const el = document.getElementById("patchHistoryList");
+    const hist = toArray(appConfig.patchHistory);
+    el.innerHTML = hist.length ? hist.map(p => `
+      <div class="list-item" style="padding:8px 10px; margin-bottom:6px; font-size:0.8rem;">
+        <strong>v${p.version}</strong> — ${p.note} <span style="color:var(--muted);">(${p.date})</span>
+      </div>
+    `).join("") : `<small style="color:var(--muted);">لم يتم نشر أي باتشات بعد.</small>`;
+  }
+
+  function resetToFactoryDefaults() {
+    if (!confirm("هل تريد استعادة إعدادات المصنع وإزالة كل الباتشات والأكواد المحقونة؟")) return;
+    db.ref("config").set(DEFAULT_CONFIG).then(() => {
+      document.getElementById("injHtmlInput").value = "";
+      document.getElementById("injCssInput").value = "";
+      document.getElementById("injJsInput").value = "";
+      showToast("♻️ تمت استعادة المصنع");
+    });
+  }
+
+  // ==================== بدء التشغيل ====================
+  window.addEventListener("DOMContentLoaded", () => {
+    loadIdentityInputs();
+    initMap();
+    initFirebaseListeners();
+  });
+</script>
+</body>
+</html>
